@@ -12,7 +12,9 @@
     "tail": "wrangler tail",
     "spike": "node scripts/spike.mjs",
     "spike:prepare": "node scripts/make-test-copy.mjs",
-    "auth": "node scripts/get-refresh-token.mjs"
+    "spike:cleanup": "node scripts/drop-test-copy.mjs",
+    "auth": "node scripts/get-refresh-token.mjs",
+    "setup:telegram": "node scripts/setup-telegram.mjs"
   },
   "license": "ISC",
   "devDependencies": {
