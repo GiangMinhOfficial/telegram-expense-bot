@@ -11,6 +11,7 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
     "spike": "node scripts/spike.mjs",
+    "spike:prepare": "node scripts/make-test-copy.mjs",
     "auth": "node scripts/get-refresh-token.mjs"
   },
   "license": "ISC",

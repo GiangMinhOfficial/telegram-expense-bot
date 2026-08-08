@@ -1,45 +1,27 @@
 // node scripts/spike.mjs — BƯỚC 0, cổng chặn.
 // Kiểm chứng rows/add không phá công thức tổng hợp của workbook.
 // CHỈ CHẠY TRÊN BẢN SAO. Cần TEST_ITEM_ID trong .dev.vars.
-import { readFileSync } from 'node:fs';
+import { getAccessToken, loadEnv } from './lib/dev-vars.mjs';
 
-const env = Object.fromEntries(
-  readFileSync('.dev.vars', 'utf8')
-    .split(/\r?\n/)
-    .filter((l) => l.trim() && !l.trim().startsWith('#'))
-    .map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]),
-);
+const env = loadEnv();
 
 const ITEM = env.TEST_ITEM_ID;
 if (!ITEM) {
   console.error('THIEU TEST_ITEM_ID trong .dev.vars.');
-  console.error('Nhan ban file tren OneDrive truoc, KHONG chay len file goc.');
+  console.error('Chay truoc: node scripts/make-test-copy.mjs');
+  process.exit(1);
+}
+// Chot chan: khong bao gio chay len file goc, du .dev.vars co bi sua nham.
+if (ITEM === env.DRIVE_ITEM_ID) {
+  console.error('TEST_ITEM_ID trung DRIVE_ITEM_ID — day la FILE GOC. Dung lai.');
   process.exit(1);
 }
 
 const SHEET = 'Tháng 8';
 const G = 'https://graph.microsoft.com/v1.0';
 
-const tokRes = await fetch(
-  'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
-  {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: env.MS_CLIENT_ID,
-      client_secret: env.MS_CLIENT_SECRET,
-      grant_type: 'refresh_token',
-      refresh_token: env.MS_REFRESH_TOKEN,
-      scope: 'Files.ReadWrite offline_access',
-    }),
-  },
-);
-const tok = await tokRes.json();
-if (!tok.access_token) {
-  console.error('LAY ACCESS TOKEN THAT BAI:', tok);
-  process.exit(1);
-}
-const H = { authorization: `Bearer ${tok.access_token}`, 'content-type': 'application/json' };
+const token = await getAccessToken(env);
+const H = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
 
 const ws = (n) => `${G}/me/drive/items/${ITEM}/workbook/worksheets('${encodeURIComponent(n)}')`;
 
