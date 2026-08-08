@@ -1,0 +1,70 @@
+import type { Env } from '../env';
+import { graphFetch } from './client';
+
+const item = (env: Env) => `/me/drive/items/${env.DRIVE_ITEM_ID}/workbook`;
+const tbl = (env: Env, table: string) =>
+  `${item(env)}/tables/${encodeURIComponent(table)}`;
+
+/**
+ * Định dạng ngày của các dòng sẵn có trong file. `rows/add` KHÔNG kế thừa định
+ * dạng cột Ngày (cột số tiền thì có) — không vá lại thì ô hiện số serial thô
+ * "46242". Kiểm chứng ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
+ */
+const DATE_FORMAT = 'd-mmm';
+
+export interface SheetData {
+  /** Ví dụ: "Tháng 8!A1:O39" */
+  address: string;
+  values: unknown[][];
+}
+
+/** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để /undo dùng lại. */
+export async function addRow(
+  env: Env, table: string, values: [string, number, number],
+): Promise<number> {
+  const t = tbl(env, table);
+  const r = (await graphFetch(env, `${t}/rows/add`, {
+    method: 'POST',
+    body: JSON.stringify({ values: [values] }),
+  })) as { index?: number };
+  if (typeof r.index !== 'number') throw new Error('Graph không trả về index của dòng vừa thêm');
+
+  // Bước hai của thao tác ghi. `null` ở hai cột kia để giữ nguyên định dạng
+  // sẵn có của chúng — cột số tiền đã có định dạng tiền tệ VND.
+  await graphFetch(env, `${t}/rows/itemAt(index=${r.index})/range`, {
+    method: 'PATCH',
+    body: JSON.stringify({ numberFormat: [[null, DATE_FORMAT, null]] }),
+  });
+
+  return r.index;
+}
+
+export async function deleteRow(env: Env, table: string, index: number): Promise<void> {
+  await graphFetch(env, `${tbl(env, table)}/rows/itemAt(index=${index})`, { method: 'DELETE' });
+}
+
+/** Đọc lại dòng để đối chiếu trước khi xoá — tránh xoá nhầm khi bảng đã dịch. */
+export async function readRow(env: Env, table: string, index: number): Promise<unknown[] | null> {
+  try {
+    const r = (await graphFetch(
+      env, `${tbl(env, table)}/rows/itemAt(index=${index})`,
+    )) as { values?: unknown[][] };
+    return r.values?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Đọc toàn bộ vùng đã dùng của một sheet trong đúng một lệnh gọi.
+ * Dùng usedRange chứ không phải vùng cố định: bảng `other` tăng ~50 dòng mỗi
+ * tháng nên biên dưới của sheet trôi liên tục.
+ */
+export async function readSheet(env: Env, sheet: string): Promise<SheetData> {
+  const r = (await graphFetch(
+    env,
+    `${item(env)}/worksheets('${encodeURIComponent(sheet)}')` +
+    `/usedRange(valuesOnly=true)?$select=address,values`,
+  )) as { address: string; values: unknown[][] };
+  return { address: r.address, values: r.values ?? [] };
+}
