@@ -1,0 +1,16 @@
+name = "telegram-expense-bot"
+main = "src/index.ts"
+compatibility_date = "2026-08-08"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "expense-bot"
+database_id = "e579c622-fe7c-4407-95ef-d6d1d4641cd1"
+
+# Hàng đợi ghi lại khi Graph lỗi — thử lại mỗi 5 phút (spec mục 9).
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Không để bí mật ở đây. Nạp bằng: npx wrangler secret put <TÊN>
+#   MS_CLIENT_ID  MS_CLIENT_SECRET  MS_REFRESH_TOKEN  DRIVE_ITEM_ID
+#   TELEGRAM_BOT_TOKEN  TELEGRAM_SECRET  ALLOWED_CHAT_ID
