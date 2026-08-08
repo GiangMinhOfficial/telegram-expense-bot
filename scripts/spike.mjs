@@ -33,8 +33,16 @@ async function snapshot() {
     if (!r.ok) throw new Error(`doc ${sheet}!${addr} that bai: ${JSON.stringify(j)}`);
     return j[kind];
   };
+  // Dong Tong cong DI CHUYEN xuong moi khi chen dong, nen phai hoi Graph vi tri
+  // hien tai cua no thay vi ghi cung dia chi. Dung chinh bai hoc cua spec 5.2:
+  // tham chieu theo cau truc bam theo bang, tham chieu o thi khong.
+  const totRes = await fetch(
+    `${G}/me/drive/items/${ITEM}/workbook/tables/food_8/totalRowRange?$select=address,values`,
+    { headers: H });
+  const tot = await totRes.json();
   return {
-    thang8_C9: (await q(SHEET, 'C9', 'values'))[0][0],
+    food8_total_addr: tot.address,
+    food8_total: tot.values[0][2],
     thang8_N2: (await q(SHEET, 'N2', 'values'))[0][0],
     tomtat_I10: (await q('Tóm tắt', 'I10', 'values'))[0][0],
     tomtat_I13: (await q('Tóm tắt', 'I13', 'values'))[0][0],
@@ -59,14 +67,25 @@ console.log('\nTRUOC:', JSON.stringify(before, null, 2), '\n');
 
 // --- Chèn 1 dòng ---
 const AMOUNT = 12345;
-const addRes = await fetch(
-  `${G}/me/drive/items/${ITEM}/workbook/tables/food_8/rows/add`,
+const DATE_FORMAT = 'd-mmm'; // khop dinh dang cac dong san co trong file
+const T = `${G}/me/drive/items/${ITEM}/workbook/tables/food_8`;
+
+const addRes = await fetch(`${T}/rows/add`,
   { method: 'POST', headers: H, body: JSON.stringify({ values: [['spike test', 46242, AMOUNT]] }) },
 );
 const added = await addRes.json();
 check('1. Graph ghi duoc vao bang food_8', addRes.ok,
   addRes.ok ? `index=${added.index}` : JSON.stringify(added));
 if (!addRes.ok) process.exit(1);
+
+// rows/add KHONG ke thua dinh dang cot Ngay (cot tien thi co). Khong vá lai thi
+// o ngay hien so serial tho "46242". Day la buoc thu hai cua thao tac ghi.
+const fmtRes = await fetch(`${T}/rows/itemAt(index=${added.index})/range`, {
+  method: 'PATCH', headers: H,
+  body: JSON.stringify({ numberFormat: [[null, DATE_FORMAT, null]] }),
+});
+check('1b. PATCH dinh dang o Ngay thanh cong', fmtRes.ok,
+  fmtRes.ok ? `numberFormat = ${DATE_FORMAT}` : await fmtRes.text());
 
 const after1 = await snapshot();
 console.log('\nSAU 1 DONG:', JSON.stringify(after1, null, 2), '\n');
@@ -85,28 +104,37 @@ check('3. Nhan cot M khong doi',
 // dịch trong cột A:C mà không đụng M:O thì công thức giữ nguyên. Kiểm số 3
 // (nhãn không đổi) mới là thứ quyết định.
 info('3b. Cong thuc M4', `${before.f_thang8_M4} -> ${after1.f_thang8_M4}`);
-check('4. SUBTOTAL C9 va N2 tu tinh lai',
-  after1.thang8_C9 - before.thang8_C9 === AMOUNT && after1.thang8_N2 - before.thang8_N2 === AMOUNT,
-  `C9 ${before.thang8_C9}->${after1.thang8_C9}, N2 ${before.thang8_N2}->${after1.thang8_N2}`);
+check('4. SUBTOTAL cua bang va N2 tu tinh lai',
+  after1.food8_total - before.food8_total === AMOUNT && after1.thang8_N2 - before.thang8_N2 === AMOUNT,
+  `Tong cong ${before.food8_total}->${after1.food8_total} (o ${before.food8_total_addr}->${after1.food8_total_addr}),` +
+  ` N2 ${before.thang8_N2}->${after1.thang8_N2}`);
 check('4b. Cong thuc Tom tat!I10 va N2 khong hong',
   !String(after1.f_tomtat_I10).includes('#REF') && !String(after1.f_thang8_N2).includes('#REF'),
   `${after1.f_tomtat_I10} | ${after1.f_thang8_N2}`);
 
-const dateRes = await fetch(`${ws(SHEET)}/range(address='B3:B12')?$select=text,values`, { headers: H });
-const dc = await dateRes.json();
-const idx = dc.values.findIndex((r) => r[0] === 46242);
-check('5. Serial 46242 hien thi thanh ngay',
-  idx >= 0 && /2026/.test(dc.text[idx][0]),
-  idx >= 0 ? `hien thi "${dc.text[idx][0]}"` : 'khong tim thay o chua 46242');
+const rowRes = await fetch(
+  `${T}/rows/itemAt(index=${added.index})/range?$select=text,values,numberFormat`, { headers: H });
+const rc = await rowRes.json();
+check('5. O Ngay hien thi thanh ngay, khong phai so serial',
+  rc.values[0][1] === 46242 && !/^\d+$/.test(String(rc.text[0][1])),
+  `gia tri ${rc.values[0][1]}, hien thi "${rc.text[0][1]}", format ${rc.numberFormat[0][1]}`);
+check('5b. O so tien giu dinh dang tien te',
+  /VND/.test(String(rc.text[0][2])),
+  `hien thi "${rc.text[0][2]}"`);
 
 // --- Chèn thêm 5 dòng: lỗi dịch chuyển có thể chỉ lộ sau nhiều lần chèn dồn ---
 for (let i = 0; i < 5; i++) {
-  const r = await fetch(`${G}/me/drive/items/${ITEM}/workbook/tables/food_8/rows/add`,
+  const r = await fetch(`${T}/rows/add`,
     { method: 'POST', headers: H, body: JSON.stringify({ values: [[`spike ${i}`, 46242, 1000]] }) });
   if (!r.ok) {
     check(`6. Chen dong thu ${i + 2}`, false, JSON.stringify(await r.json()));
     break;
   }
+  const j = await r.json();
+  await fetch(`${T}/rows/itemAt(index=${j.index})/range`, {
+    method: 'PATCH', headers: H,
+    body: JSON.stringify({ numberFormat: [[null, DATE_FORMAT, null]] }),
+  });
 }
 const after6 = await snapshot();
 console.log('\nSAU 6 DONG:', JSON.stringify(after6, null, 2), '\n');
@@ -119,8 +147,7 @@ check('6b. Sau 6 lan chen, nhan cot M van nguyen',
   JSON.stringify(after6.labels_M));
 
 // --- Xoá dòng (đường /undo) ---
-const delRes = await fetch(
-  `${G}/me/drive/items/${ITEM}/workbook/tables/food_8/rows/itemAt(index=${added.index})`,
+const delRes = await fetch(`${T}/rows/itemAt(index=${added.index})`,
   { method: 'DELETE', headers: H });
 const after7 = await snapshot();
 check('7. DELETE rows/itemAt hoat dong va Tom tat van dung',

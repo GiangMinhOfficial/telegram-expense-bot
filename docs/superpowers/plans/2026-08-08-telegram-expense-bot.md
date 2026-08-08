@@ -1342,15 +1342,31 @@ export interface SheetData {
   values: unknown[][];
 }
 
+/**
+ * Định dạng ngày của các dòng sẵn có trong file. `rows/add` KHÔNG kế thừa định
+ * dạng cột Ngày (cột số tiền thì có) — không vá lại thì ô hiện số serial thô
+ * "46242". Kiểm chứng ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
+ */
+const DATE_FORMAT = 'd-mmm';
+
 /** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để /undo dùng lại. */
 export async function addRow(
   env: Env, table: string, values: [string, number, number],
 ): Promise<number> {
-  const r = (await graphFetch(env, `${item(env)}/tables/${encodeURIComponent(table)}/rows/add`, {
+  const t = `${item(env)}/tables/${encodeURIComponent(table)}`;
+  const r = (await graphFetch(env, `${t}/rows/add`, {
     method: 'POST',
     body: JSON.stringify({ values: [values] }),
   })) as { index?: number };
   if (typeof r.index !== 'number') throw new Error('Graph không trả về index của dòng vừa thêm');
+
+  // Bước hai của thao tác ghi. `null` ở hai cột kia để giữ nguyên định dạng
+  // sẵn có của chúng (cột số tiền đã có định dạng tiền tệ VND).
+  await graphFetch(env, `${t}/rows/itemAt(index=${r.index})/range`, {
+    method: 'PATCH',
+    body: JSON.stringify({ numberFormat: [[null, DATE_FORMAT, null]] }),
+  });
+
   return r.index;
 }
 
@@ -1417,6 +1433,8 @@ git commit -m "feat: thao tác workbook — thêm, xoá, đọc dòng và đọc
   ): Totals;
   ```
   `daySerial` là ngày **của khoản vừa ghi**, không nhất thiết là hôm nay — khi ghi lùi ngày, Task 11 truyền ngày đó vào để con số tổng chứa khoản vừa ghi.
+
+> **Cập nhật sau BƯỚC 0:** ngân sách lệnh gọi Graph mỗi tin nhắn là **~3**, không phải 2 — `rows/add`, `PATCH numberFormat`, `usedRange`. Vẫn dưới 1 giây.
 
 **Cách tính.** Sheet tháng có hai vùng dùng được:
 - **Bảng tổng hợp `M:O`** (hàng 1–9): cột `M` là nhãn nhóm, cột `N` là số tiền. Có sẵn tổng từng nhóm và dòng `Tổng chi`. Dùng nó cho `categoryMonth` và `monthSpend` — khỏi phải tự cộng.
