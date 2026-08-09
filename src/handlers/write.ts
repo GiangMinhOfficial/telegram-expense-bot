@@ -2,7 +2,7 @@ import { CATEGORIES, sheetName, tableName } from '../config';
 import { logWrite, setLastWrite } from '../db';
 import type { Env } from '../env';
 import { computeTotals } from '../graph/totals';
-import { addRow, readSheet } from '../graph/workbook';
+import { appendRow, fixDateFormat, readSheet } from '../graph/workbook';
 import { toExcelSerial, vnToday } from '../parse/date';
 import type { ParsedEntry } from '../parse/message';
 import { sendMessage } from '../telegram/api';
@@ -17,19 +17,25 @@ export async function performWrite(
   const sheet = sheetName(e.date.m);
   const serial = toExcelSerial(e.date);
 
-  const index = await addRow(env, table, [e.description, serial, e.amount]);
+  const values: [string, number, number] = [e.description, serial, e.amount];
+  const index = await appendRow(env, table, values);
 
-  await setLastWrite(env.DB, chatId, {
-    sheet, tableName: table, rowIndex: index,
-    valuesJson: JSON.stringify([e.description, serial, e.amount]),
-  });
-  await logWrite(env.DB, {
-    tableName: table, rowIndex: index,
-    description: e.description, amount: e.amount, dateSerial: serial,
-  });
+  // Vá định dạng và hai lệnh ghi D1 chạy song song với lệnh đọc sheet: chúng
+  // không đụng tới `values` nên không ảnh hưởng kết quả đọc.
+  const [data] = await Promise.all([
+    readSheet(env, sheet),
+    fixDateFormat(env, table, index),
+    setLastWrite(env.DB, chatId, {
+      sheet, tableName: table, rowIndex: index,
+      valuesJson: JSON.stringify(values),
+    }),
+    logWrite(env.DB, {
+      tableName: table, rowIndex: index,
+      description: e.description, amount: e.amount, dateSerial: serial,
+    }),
+  ]);
 
   const label = CATEGORIES[e.category].label;
-  const data = await readSheet(env, sheet);
   // Tổng theo ngày CỦA KHOẢN VỪA GHI, không phải hôm nay — để con số hiện ra
   // luôn chứa khoản vừa ghi, kể cả khi ghi lùi ngày.
   const totals = computeTotals(data, label, serial);

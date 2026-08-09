@@ -11,27 +11,35 @@ const tbl = (env: Env, table: string) =>
  * dạng cột Ngày (cột số tiền thì có) — không vá lại thì ô hiện số serial thô
  * "46242". Kiểm chứng ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
  */
-const DATE_FORMAT = 'd-mmm';
+export const DATE_FORMAT = 'd-mmm';
 
 /** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để /undo dùng lại. */
-export async function addRow(
+export async function appendRow(
   env: Env, table: string, values: [string, number, number],
 ): Promise<number> {
-  const t = tbl(env, table);
-  const r = (await graphFetch(env, `${t}/rows/add`, {
+  const r = (await graphFetch(env, `${tbl(env, table)}/rows/add`, {
     method: 'POST',
     body: JSON.stringify({ values: [values] }),
   })) as { index?: number };
   if (typeof r.index !== 'number') throw new Error('Graph không trả về index của dòng vừa thêm');
+  return r.index;
+}
 
-  // Bước hai của thao tác ghi. `null` ở hai cột kia để giữ nguyên định dạng
-  // sẵn có của chúng — cột số tiền đã có định dạng tiền tệ VND.
-  await graphFetch(env, `${t}/rows/itemAt(index=${r.index})/range`, {
+/**
+ * Vá định dạng cột Ngày cho dòng vừa thêm.
+ *
+ * `null` ở hai cột kia để giữ nguyên định dạng sẵn có — cột số tiền đã có định
+ * dạng tiền tệ VND. Tách khỏi `appendRow` để chạy song song với các lệnh đọc:
+ * nó chỉ đổi `numberFormat`, không đụng tới `values`, nên không ảnh hưởng kết
+ * quả đọc dù hai lệnh chạy chồng lên nhau.
+ */
+export async function fixDateFormat(
+  env: Env, table: string, index: number,
+): Promise<void> {
+  await graphFetch(env, `${tbl(env, table)}/rows/itemAt(index=${index})/range`, {
     method: 'PATCH',
     body: JSON.stringify({ numberFormat: [[null, DATE_FORMAT, null]] }),
   });
-
-  return r.index;
 }
 
 export async function deleteRow(env: Env, table: string, index: number): Promise<void> {
