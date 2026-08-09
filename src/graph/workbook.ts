@@ -11,7 +11,7 @@ const tbl = (env: Env, table: string) =>
  * dạng cột Ngày (cột số tiền thì có) — không vá lại thì ô hiện số serial thô
  * "46242". Kiểm chứng ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
  */
-export const DATE_FORMAT = 'd-mmm';
+const DATE_FORMAT = 'd-mmm';
 
 /** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để /undo dùng lại. */
 export async function appendRow(
