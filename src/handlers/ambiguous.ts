@@ -10,11 +10,12 @@ import { performWrite, type ExactEntry } from './write';
  * Lưu khoản chờ vào D1, callback chỉ mang id ngắn.
  */
 export async function askAmount(
-  env: Env, chatId: number, entry: ParsedEntry, low: number, high: number,
+  env: Env, chatId: number, entry: ParsedEntry,
+  targetMonth: number, low: number, high: number,
 ): Promise<void> {
   const id = crypto.randomUUID().slice(0, 8);
   await putPending(env.DB, {
-    id, chatId, payloadJson: JSON.stringify({ ...entry, low, high }),
+    id, chatId, payloadJson: JSON.stringify({ ...entry, targetMonth, low, high }),
   });
 
   await sendMessage(
@@ -41,10 +42,16 @@ export async function resolveAmount(
     return;
   }
 
-  const p = JSON.parse(pending.payloadJson) as ParsedEntry & { low: number; high: number };
+  const p = JSON.parse(pending.payloadJson) as ParsedEntry & {
+    low: number; high: number; targetMonth?: number;
+  };
   const exact: ExactEntry = {
     category: p.category, description: p.description, date: p.date,
-    amount: which === 'hi' ? p.high : p.low, isCard: p.isCard,
+    // Bản ghi chờ tạo trước khi có tính năng thẻ thì thiếu hai trường này —
+    // JSON.parse không kiểm kiểu nên phải tự chống undefined ở đây.
+    isCard: p.isCard ?? false,
+    targetMonth: p.targetMonth ?? p.date.m,
+    amount: which === 'hi' ? p.high : p.low,
   };
 
   await answerCallback(env, cbId);

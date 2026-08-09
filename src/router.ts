@@ -1,14 +1,16 @@
+import { paymentMonth } from './billing';
+import { CATEGORIES } from './config';
 import { enqueue } from './db';
 import type { Env } from './env';
 import { AuthExpiredError } from './graph/auth';
 import { askAmount, resolveAmount } from './handlers/ambiguous';
 import { handleMonth, handleToday } from './handlers/query';
 import { handleUndo } from './handlers/undo';
-import { performWrite } from './handlers/write';
+import { type ExactEntry, performWrite } from './handlers/write';
 import { parseMessage } from './parse/message';
 import { loadNote } from './note';
 import { sendMessage } from './telegram/api';
-import { helpText } from './telegram/format';
+import { carryOverRefusal, helpText } from './telegram/format';
 
 export interface TelegramUpdate {
   message?: { chat: { id: number }; from?: { id: number }; text?: string; date: number };
@@ -47,12 +49,24 @@ export async function handleUpdate(env: Env, update: TelegramUpdate): Promise<vo
   }
 
   const { entry } = parsed;
-  if (entry.amount.kind === 'ambiguous') {
-    await askAmount(env, chatId, entry, entry.amount.low, entry.amount.high);
+
+  const target = paymentMonth(entry.date, entry.isCard, note.cutoffDay);
+  if (!target.ok) {
+    await sendMessage(
+      env, chatId,
+      carryOverRefusal({ ...entry, label: CATEGORIES[entry.category].label }, target.error),
+    );
     return;
   }
 
-  const exact = { ...entry, amount: entry.amount.amount };
+  if (entry.amount.kind === 'ambiguous') {
+    await askAmount(env, chatId, entry, target.month, entry.amount.low, entry.amount.high);
+    return;
+  }
+
+  const exact: ExactEntry = {
+    ...entry, amount: entry.amount.amount, targetMonth: target.month,
+  };
   try {
     await performWrite(env, chatId, exact);
   } catch (err) {

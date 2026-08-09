@@ -10,7 +10,15 @@ export async function drainOutbox(env: Env): Promise<void> {
   const items = await dueOutbox(env.DB, 10);
   for (const it of items) {
     try {
-      const entry = JSON.parse(it.payloadJson) as ExactEntry;
+      const raw = JSON.parse(it.payloadJson) as ExactEntry & {
+        isCard?: boolean; targetMonth?: number;
+      };
+      // Khoản vào hàng đợi trước khi có tính năng thẻ thì thiếu hai trường này.
+      const entry: ExactEntry = {
+        ...raw,
+        isCard: raw.isCard ?? false,
+        targetMonth: raw.targetMonth ?? raw.date.m,
+      };
       await performWrite(env, it.chatId, entry);
       await dropOutbox(env.DB, it.id);
     } catch (err) {
