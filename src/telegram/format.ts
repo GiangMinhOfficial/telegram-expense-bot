@@ -1,3 +1,4 @@
+import type { NoteConfig } from '../note';
 import type { VNDate } from '../parse/date';
 import type { Totals } from '../graph/totals';
 
@@ -33,8 +34,8 @@ export function confirmation(
   return `${head}\n\n<pre>${esc(body)}</pre>`;
 }
 
-export function helpText(shortcodes: Record<string, string>): string {
-  const codes = Object.entries(shortcodes).map(([k, v]) => `${k} = ${v}`).join(' · ');
+export function helpText(note: NoteConfig): string {
+  const codes = Object.entries(note.shortcodes).map(([k, v]) => `${k} = ${v}`).join(' · ');
   return [
     '<b>Cú pháp</b>',
     '<code>/lệnh [ngày] mô tả số_tiền</code>',

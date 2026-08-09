@@ -6,7 +6,7 @@ import { handleMonth, handleToday } from './handlers/query';
 import { handleUndo } from './handlers/undo';
 import { performWrite } from './handlers/write';
 import { parseMessage } from './parse/message';
-import { loadShortcodes } from './shortcodes';
+import { loadNote } from './note';
 import { sendMessage } from './telegram/api';
 import { helpText } from './telegram/format';
 
@@ -32,15 +32,15 @@ export async function handleUpdate(env: Env, update: TelegramUpdate): Promise<vo
   const text = msg.text.trim();
 
   if (/^\/help\b/i.test(text)) {
-    await sendMessage(env, chatId, helpText(await loadShortcodes(env)));
+    await sendMessage(env, chatId, helpText(await loadNote(env)));
     return;
   }
   if (/^\/undo\b/i.test(text)) { await handleUndo(env, chatId); return; }
   if (/^\/today\b/i.test(text)) { await handleToday(env, chatId); return; }
   if (/^\/thang\b/i.test(text)) { await handleMonth(env, chatId); return; }
 
-  const shortcodes = await loadShortcodes(env);
-  const parsed = parseMessage(text, Date.now(), shortcodes);
+  const note = await loadNote(env);
+  const parsed = parseMessage(text, Date.now(), note.shortcodes);
   if (!parsed.ok) {
     await sendMessage(env, chatId, `⚠️ ${parsed.error}`);
     return;

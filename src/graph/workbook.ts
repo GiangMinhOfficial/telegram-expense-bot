@@ -63,3 +63,21 @@ export async function readSheet(env: Env, sheet: string): Promise<SheetData> {
   )) as { address: string; values: unknown[][] };
   return { address: r.address, values: r.values ?? [] };
 }
+
+/**
+ * Đọc một vùng CỐ ĐỊNH.
+ *
+ * Dùng cho sheet `Note`: `usedRange` của nó bắt đầu ở E4 nên chỉ số cột không ổn
+ * định, còn `A1:Z50` thì cột A luôn là chỉ số 0. `Note` là sheet cấu hình, không
+ * dài ra theo thời gian như sheet tháng, nên vùng cố định là đủ.
+ */
+export async function readRange(
+  env: Env, sheet: string, address: string,
+): Promise<SheetData> {
+  const r = (await graphFetch(
+    env,
+    `${item(env)}/worksheets('${encodeURIComponent(sheet)}')` +
+    `/range(address='${address}')?$select=address,values`,
+  )) as { address: string; values: unknown[][] };
+  return { address: r.address, values: r.values ?? [] };
+}
