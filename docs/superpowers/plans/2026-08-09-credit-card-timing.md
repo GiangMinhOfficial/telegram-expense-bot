@@ -26,7 +26,7 @@
 
 | File | Trách nhiệm |
 |---|---|
-| `src/graph/sheet.ts` | **Mới.** Kiểu `SheetData` và hai hàm thuần `colOffset` / `cellAt` — bù trừ chỉ số cột cho vùng không bắt đầu từ A1 |
+| `src/graph/sheet.ts` | **Mới.** Mọi kiến thức chung về đọc sheet: kiểu `SheetData`, `colOffset`/`cellAt` bù trừ chỉ số cột, và bố cục sheet tháng (`SPEND_BLOCKS`, `LABEL_COL`, `VALUE_COL`, `num`, `text`) mà trước đây `totals.ts` và `query.ts` mỗi file giữ một bản sao |
 | `src/billing.ts` | **Mới.** Đúng một hàm thuần `paymentMonth()` — quy tắc tháng đích |
 | `src/note.ts` | **Mới**, thay `src/shortcodes.ts`. Đọc sheet `Note`: bảng mã viết tắt **và** mốc chốt sao kê |
 | `src/shortcodes.ts` | **Xoá.** Trách nhiệm đã rộng hơn tên gọi |
@@ -62,7 +62,7 @@ Tạo `tests/sheet.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { cellAt, colOffset } from '../src/graph/sheet';
+import { cellAt, colOffset, num, text } from '../src/graph/sheet';
 
 describe('colOffset', () => {
   it('vùng bắt đầu từ A1 → 0', () =>
@@ -95,6 +95,15 @@ describe('cellAt', () => {
 
   it('cột nằm trước vùng đã đọc → undefined, không được trả nhầm ô khác', () =>
     expect(cellAt(row, 1, 4)).toBeUndefined());
+});
+
+describe('num và text', () => {
+  it('num nhận số hữu hạn', () => expect(num(40_000)).toBe(40_000));
+  it('num loại chuỗi', () => expect(num('40000')).toBeNull());
+  it('num loại NaN', () => expect(num(Number.NaN)).toBeNull());
+  it('num loại ô trống', () => expect(num(undefined)).toBeNull());
+  it('text cắt khoảng trắng', () => expect(text('  Tổng chi  ')).toBe('Tổng chi'));
+  it('text với số trả về chuỗi rỗng', () => expect(text(42)).toBe(''));
 });
 ```
 
@@ -135,31 +144,53 @@ export function cellAt(row: unknown[], absCol: number, offset: number): unknown 
   const i = absCol - offset;
   return i >= 0 ? row[i] : undefined;
 }
+
+// ── Bố cục sheet tháng ────────────────────────────────────────────────────
+// Trước đây `totals.ts` và `query.ts` mỗi file giữ một bản sao của khối này.
+// Gom về đây để sửa bố cục sheet chỉ phải sửa một chỗ.
+
+/** Cột đầu của các khối chi tiêu: A:C và E:G. I:K là thu nhập/đầu tư/tiết kiệm. */
+export const SPEND_BLOCKS = [0, 4] as const;
+
+/** Bảng tổng hợp M:O — M là nhãn phân loại, N là số tiền. */
+export const LABEL_COL = 12;
+export const VALUE_COL = 13;
+
+export const num = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) ? v : null;
+
+export const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 ```
 
 - [ ] **Bước 4: Chạy lại test**
 
 Chạy: `npx vitest run tests/sheet.test.ts`
-Kỳ vọng: PASS 9/9
+Kỳ vọng: PASS 15/15
 
 - [ ] **Bước 5: Chuyển `SheetData` sang file mới**
 
-Trong `src/graph/workbook.ts`, xoá khối định nghĩa `SheetData` (dòng 15–19) và thêm vào đầu file:
+Trong `src/graph/workbook.ts`, xoá khối định nghĩa `SheetData` (dòng 15–19) và thêm vào nhóm import sẵn có:
 
 ```ts
 import type { SheetData } from './sheet';
-
-export type { SheetData };
 ```
 
-Đặt dòng `import type` cạnh các import sẵn có, còn `export type { SheetData }` ngay sau nhóm import — giữ lại đường dẫn cũ để các file khác không phải sửa import.
+**Không** re-export lại từ `workbook.ts`. Sau task này chỉ `totals.ts` dùng kiểu đó và nó import thẳng từ `./sheet`; `note.ts` ở Task 2 cũng vậy. Re-export sẽ là mã không ai dùng.
+
+Đổi luôn dòng import ở đầu `src/graph/totals.ts`:
+
+```ts
+import { type SheetData, cellAt, colOffset } from './sheet';
+```
 
 - [ ] **Bước 6: Viết lại `src/graph/totals.ts`**
 
 Thay toàn bộ nội dung:
 
 ```ts
-import { type SheetData, cellAt, colOffset } from './sheet';
+import {
+  LABEL_COL, SPEND_BLOCKS, type SheetData, VALUE_COL, cellAt, colOffset, num, text,
+} from './sheet';
 
 export interface Totals {
   /** Tổng nhóm vừa ghi, trong tháng ĐÍCH */
@@ -170,16 +201,7 @@ export interface Totals {
   monthSpend: number;
 }
 
-/** Chỉ số cột TUYỆT ĐỐI: A=0, E=4, I=8, M=12, N=13. */
-const SPEND_BLOCKS = [0, 4] as const; // A:C và E:G — I:K là thu/đầu tư/tiết kiệm
-const LABEL_COL = 12;
-const VALUE_COL = 13;
 const TOTAL_LABEL = 'Tổng chi';
-
-const num = (v: unknown): number | null =>
-  typeof v === 'number' && Number.isFinite(v) ? v : null;
-
-const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
 /**
  * Tổng chi của một ngày trên MỘT sheet.
@@ -1390,21 +1412,13 @@ Thay toàn bộ nội dung:
 ```ts
 import { CATEGORIES, sheetName } from '../config';
 import type { Env } from '../env';
-import { cellAt, colOffset } from '../graph/sheet';
+import {
+  LABEL_COL, SPEND_BLOCKS, VALUE_COL, cellAt, colOffset, num, text,
+} from '../graph/sheet';
 import { readSheet } from '../graph/workbook';
 import { toExcelSerial, vnToday } from '../parse/date';
 import { sendMessage } from '../telegram/api';
 import { alignedRows, formatVND } from '../telegram/format';
-
-/** Chỉ số cột TUYỆT ĐỐI: A=0, E=4, M=12, N=13. */
-const SPEND_BLOCKS = [0, 4] as const;
-const LABEL_COL = 12;
-const VALUE_COL = 13;
-
-const num = (v: unknown): number | null =>
-  typeof v === 'number' && Number.isFinite(v) ? v : null;
-
-const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 
 export async function handleToday(env: Env, chatId: number): Promise<void> {
   const today = vnToday(Date.now());
