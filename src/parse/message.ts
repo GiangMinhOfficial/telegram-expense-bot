@@ -7,6 +7,8 @@ export interface ParsedEntry {
   description: string;
   date: VNDate;
   amount: Amount;
+  /** Quẹt thẻ tín dụng — quyết định tháng đích, xem src/billing.ts */
+  isCard: boolean;
 }
 export type ParseOutcome =
   | { ok: true; entry: ParsedEntry }
@@ -18,6 +20,20 @@ const MULTIWORD: [RegExp, string][] = [
   [/\bh(ô|o)m\s+qua\b/giu, 'hqua'],
   [/\bh(ô|o)m\s+kia\b/giu, 'hkia'],
 ];
+
+/**
+ * Chỉ nhận đúng `cc`, KHÔNG nhận `thẻ`/`the`/`td`.
+ *
+ * "/other nạp thẻ 100k" là câu hoàn toàn bình thường để ghi nạp thẻ điện thoại.
+ * Nếu "thẻ" là từ khoá thì khoản đó bị đẩy sang tháng sau mà không có dấu hiệu
+ * nào báo. `cc` không đụng từ tiếng Việt nào.
+ */
+const CARD_TOKEN = 'cc';
+
+/** Thu nhập, đầu tư, tiết kiệm không phải khoản quẹt thẻ. */
+const CARD_ALLOWED = new Set<CategoryKey>([
+  'food', 'eat_out', 'transport', 'force', 'other', 'other_expense',
+]);
 
 export function parseMessage(
   text: string,
@@ -38,7 +54,22 @@ export function parseMessage(
     return { ok: false, error: `Không có lệnh /${cmd}. Gõ /help để xem danh sách lệnh.` };
   }
 
-  const tokens = parts.slice(1).filter(Boolean);
+  const raws = parts.slice(1).filter(Boolean);
+
+  // Bóc token cc ra trước khi quét số tiền, ngày, mô tả.
+  const tokens: string[] = [];
+  let isCard = false;
+  for (const t of raws) {
+    if (t.toLowerCase() === CARD_TOKEN) { isCard = true; continue; }
+    tokens.push(t);
+  }
+
+  if (isCard && !CARD_ALLOWED.has(cmd)) {
+    return {
+      ok: false,
+      error: `cc chỉ dùng cho các nhóm chi tiêu, không dùng với /${cmd}.`,
+    };
+  }
 
   // Số tiền: token CUỐI CÙNG khớp mẫu. Quét ngược để "cơm 2 người 80k" lấy 80k.
   let amount: Amount | null = null;
@@ -79,5 +110,5 @@ export function parseMessage(
     return { ok: false, error: 'Thiếu mô tả. Ví dụ: /food ăn trưa 40k' };
   }
 
-  return { ok: true, entry: { category: cmd, description, date, amount } };
+  return { ok: true, entry: { category: cmd, description, date, amount, isCard } };
 }

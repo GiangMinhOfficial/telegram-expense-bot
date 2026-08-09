@@ -44,7 +44,7 @@ export async function resolveAmount(
   const p = JSON.parse(pending.payloadJson) as ParsedEntry & { low: number; high: number };
   const exact: ExactEntry = {
     category: p.category, description: p.description, date: p.date,
-    amount: which === 'hi' ? p.high : p.low,
+    amount: which === 'hi' ? p.high : p.low, isCard: p.isCard,
   };
 
   await answerCallback(env, cbId);
