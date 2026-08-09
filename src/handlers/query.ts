@@ -1,33 +1,38 @@
 import { CATEGORIES, sheetName } from '../config';
 import type { Env } from '../env';
+import {
+  LABEL_COL, SPEND_BLOCKS, VALUE_COL, cellAt, colOffset, num, text,
+} from '../graph/sheet';
 import { readSheet } from '../graph/workbook';
 import { toExcelSerial, vnToday } from '../parse/date';
 import { sendMessage } from '../telegram/api';
 import { alignedRows, formatVND } from '../telegram/format';
 
-const SPEND_BLOCKS = [0, 4] as const;
-const LABEL_COL = 12;
-const VALUE_COL = 13;
-
-const num = (v: unknown): number | null =>
-  typeof v === 'number' && Number.isFinite(v) ? v : null;
-
 export async function handleToday(env: Env, chatId: number): Promise<void> {
   const today = vnToday(Date.now());
   const serial = toExcelSerial(today);
-  const data = await readSheet(env, sheetName(today.m));
+
+  // Khoản quẹt thẻ hôm nay đã nằm ở sheet tháng sau nếu hôm nay qua mốc chốt.
+  // Đọc cả hai rồi lọc theo ngày — không cần biết mốc chốt là bao nhiêu.
+  const [cur, next] = await Promise.all([
+    readSheet(env, sheetName(today.m)),
+    today.m < 12 ? readSheet(env, sheetName(today.m + 1)) : Promise.resolve(null),
+  ]);
 
   const items: [string, string][] = [];
   let total = 0;
-  for (const row of data.values) {
-    for (const c of SPEND_BLOCKS) {
-      const cell = row[c];
-      const desc = typeof cell === 'string' ? cell.trim() : '';
-      const d = num(row[c + 1]);
-      const amt = num(row[c + 2]);
-      if (d === serial && amt !== null && desc) {
-        items.push([desc.slice(0, 22), formatVND(amt)]);
-        total += amt;
+  for (const data of [cur, next]) {
+    if (!data) continue;
+    const off = colOffset(data.address);
+    for (const row of data.values) {
+      for (const c of SPEND_BLOCKS) {
+        const desc = text(cellAt(row, c, off));
+        const d = num(cellAt(row, c + 1, off));
+        const amt = num(cellAt(row, c + 2, off));
+        if (d === serial && amt !== null && desc) {
+          items.push([desc.slice(0, 22), formatVND(amt)]);
+          total += amt;
+        }
       }
     }
   }
@@ -42,6 +47,7 @@ export async function handleToday(env: Env, chatId: number): Promise<void> {
 export async function handleMonth(env: Env, chatId: number): Promise<void> {
   const today = vnToday(Date.now());
   const data = await readSheet(env, sheetName(today.m));
+  const off = colOffset(data.address);
 
   const wanted = new Set<string>(Object.values(CATEGORIES).map((c) => c.label));
   const rows: [string, string][] = [];
@@ -49,15 +55,16 @@ export async function handleMonth(env: Env, chatId: number): Promise<void> {
   let income = 0;
 
   for (const row of data.values) {
-    const raw = row[LABEL_COL];
-    const label = typeof raw === 'string' ? raw.trim() : '';
-    const v = num(row[VALUE_COL]);
+    const label = text(cellAt(row, LABEL_COL, off));
+    const v = num(cellAt(row, VALUE_COL, off));
     if (!label || v === null) continue;
     if (label === 'Tổng chi') { spend = v; continue; }
     if (label === CATEGORIES.income.label) { income = v; continue; }
     if (wanted.has(label)) rows.push([label, formatVND(v)]);
   }
 
+  // Nghĩa đã đổi từ khi có tính năng thẻ: đây là tiền RỜI TÀI KHOẢN trong tháng,
+  // không phải tiền tiêu trong tháng.
   await sendMessage(
     env, chatId,
     `<b>Tháng ${today.m}</b>\n<pre>${alignedRows(rows)}</pre>\n` +
