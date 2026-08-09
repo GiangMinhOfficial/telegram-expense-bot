@@ -1,5 +1,6 @@
 import type { Env } from '../env';
 import { graphFetch } from './client';
+import type { SheetData } from './sheet';
 
 const item = (env: Env) => `/me/drive/items/${env.DRIVE_ITEM_ID}/workbook`;
 const tbl = (env: Env, table: string) =>
@@ -11,12 +12,6 @@ const tbl = (env: Env, table: string) =>
  * "46242". Kiểm chứng ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
  */
 const DATE_FORMAT = 'd-mmm';
-
-export interface SheetData {
-  /** Ví dụ: "Tháng 8!A1:O39" */
-  address: string;
-  values: unknown[][];
-}
 
 /** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để /undo dùng lại. */
 export async function addRow(

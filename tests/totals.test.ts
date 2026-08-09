@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeTotals } from '../src/graph/totals';
+import { computeTotals, sumDay } from '../src/graph/totals';
 
 const T = 46242; // 08/08/2026
 const e = '';
@@ -51,4 +51,26 @@ describe('computeTotals', () => {
   it('sheet rỗng → tất cả 0', () =>
     expect(computeTotals({ address: 'Tháng 9!A1:A1', values: [] }, 'Ăn uống sinh hoạt', T))
       .toEqual({ categoryMonth: 0, today: 0, monthSpend: 0 }));
+
+  it('vùng bắt đầu từ cột M vẫn đọc đúng bảng tổng hợp', () => {
+    // Cắt 12 cột đầu và khai báo địa chỉ bắt đầu từ M — mô phỏng cách usedRange
+    // hành xử khi sheet trống các cột bên trái. Khối chi tiêu A:C và E:G nằm
+    // ngoài vùng này nên `today` phải bằng 0, KHÔNG được đọc nhầm sang cột khác.
+    const onlySummary = {
+      address: 'Tháng 8!M1:O10',
+      values: sheet.values.map((r) => r.slice(12)),
+    };
+    const t = computeTotals(onlySummary, 'Ăn uống sinh hoạt', T);
+    expect(t.categoryMonth).toBe(890_000);
+    expect(t.monthSpend).toBe(3_240_000);
+    expect(t.today).toBe(0);
+  });
+});
+
+describe('sumDay', () => {
+  it('cộng đúng các khoản chi của một ngày', () =>
+    expect(sumDay(sheet, T)).toBe(77_000));
+
+  it('ngày không có khoản nào → 0', () =>
+    expect(sumDay(sheet, 46_000)).toBe(0));
 });

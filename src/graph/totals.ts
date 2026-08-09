@@ -1,50 +1,52 @@
-import type { SheetData } from './workbook';
+import {
+  LABEL_COL, SPEND_BLOCKS, type SheetData, VALUE_COL, cellAt, colOffset, num, text,
+} from './sheet';
 
 export interface Totals {
-  /** Tổng nhóm vừa ghi, trong tháng này */
+  /** Tổng nhóm vừa ghi, trong tháng ĐÍCH */
   categoryMonth: number;
   /** Tổng chi của `daySerial` (không gồm thu nhập / đầu tư / tiết kiệm) */
   today: number;
-  /** Tổng chi cả tháng */
+  /** Tổng chi cả tháng ĐÍCH */
   monthSpend: number;
 }
 
-/** Chỉ số cột 0-based: A=0, E=4, I=8, M=12, N=13. */
-const SPEND_BLOCKS = [0, 4] as const; // A:C và E:G — I:K là thu/đầu tư/tiết kiệm
-const LABEL_COL = 12;
-const VALUE_COL = 13;
 const TOTAL_LABEL = 'Tổng chi';
 
-const num = (v: unknown): number | null =>
-  typeof v === 'number' && Number.isFinite(v) ? v : null;
-
-const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+/**
+ * Tổng chi của một ngày trên MỘT sheet.
+ *
+ * Tách riêng vì khoản quẹt thẻ nhảy tháng nằm ở sheet tháng thanh toán, còn chi
+ * tiền mặt cùng ngày nằm ở sheet tháng phát sinh — phải cộng cả hai mới đúng.
+ */
+export function sumDay(sheet: SheetData, daySerial: number): number {
+  const off = colOffset(sheet.address);
+  let total = 0;
+  for (const row of sheet.values) {
+    for (const c of SPEND_BLOCKS) {
+      const date = num(cellAt(row, c + 1, off));
+      const amount = num(cellAt(row, c + 2, off));
+      if (date === daySerial && amount !== null) total += amount;
+    }
+  }
+  return total;
+}
 
 export function computeTotals(
   sheet: SheetData, categoryLabel: string, daySerial: number,
 ): Totals {
+  const off = colOffset(sheet.address);
   let categoryMonth = 0;
   let monthSpend = 0;
-  let today = 0;
 
   for (const row of sheet.values) {
-    // Bảng tổng hợp M:O
-    const label = text(row[LABEL_COL]);
-    if (label) {
-      const v = num(row[VALUE_COL]);
-      if (v !== null) {
-        if (label === categoryLabel) categoryMonth = v;
-        else if (label === TOTAL_LABEL) monthSpend = v;
-      }
-    }
-
-    // Khối dữ liệu chi tiêu
-    for (const c of SPEND_BLOCKS) {
-      const date = num(row[c + 1]);
-      const amount = num(row[c + 2]);
-      if (date === daySerial && amount !== null) today += amount;
-    }
+    const label = text(cellAt(row, LABEL_COL, off));
+    if (!label) continue;
+    const v = num(cellAt(row, VALUE_COL, off));
+    if (v === null) continue;
+    if (label === categoryLabel) categoryMonth = v;
+    else if (label === TOTAL_LABEL) monthSpend = v;
   }
 
-  return { categoryMonth, today, monthSpend };
+  return { categoryMonth, today: sumDay(sheet, daySerial), monthSpend };
 }
