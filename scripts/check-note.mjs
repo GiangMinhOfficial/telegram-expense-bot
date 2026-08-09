@@ -1,10 +1,13 @@
-// Kiểm tra vùng cố định A1:Z50 của sheet Note trả về đúng cái gì — CHỈ ĐỌC, không ghi.
+// In ra nội dung THẬT của sheet Note trong vùng cố định A1:Z50 — CHỈ ĐỌC, không ghi.
 //
-// parseNote() (src/note.ts) đọc theo chỉ số cột TUYỆT ĐỐI, bù trừ theo offset
-// của vùng đọc được — xem colOffset(). Bản cũ (loadShortcodes(), đã xoá) dùng
-// usedRange nên vùng có thể trôi bắt đầu từ E4, khiến row[4] trỏ nhầm vào cột I
-// và bảng mã viết tắt im lặng không hoạt động. Vùng cố định A1:Z50 giữ offset
-// luôn bằng 0 nên lỗi đó không còn tái diễn.
+// Đây là bản dump chẩn đoán — KHÔNG phải bản sao luật nghiệp vụ của parseNote()
+// (src/note.ts). Script chỉ báo cáo sheet đang chứa gì; người chạy tự đối chiếu
+// kết quả với DEFAULT_CUTOFF_DAY và khoảng 1–28 trong parseNote() nếu cần. Bản
+// trước từng mô phỏng lại cả colOffset() lẫn luật chốt hạn — hai bản luật độc
+// lập, hễ parseNote() đổi mà quên sửa ở đây thì script âm thầm báo sai cho
+// người đang dùng nó để chẩn đoán sự cố. .mjs chạy bằng node thường không import
+// được src/*.ts nên không thể gọi thẳng parseNote() — nhưng điều đó chỉ biện
+// minh cho việc gọi Graph trực tiếp, không biện minh cho việc chép lại luật.
 import { loadEnv, getAccessToken } from './lib/dev-vars.mjs';
 
 const env = loadEnv();
@@ -30,27 +33,20 @@ values.forEach((row, i) => {
   console.log(`  dong ${i}: ${cells}`);
 });
 
-// Mô phỏng đúng parseNote: chỉ số cột TUYỆT ĐỐI, bù trừ theo địa chỉ vùng đọc.
-const m = /!\$?([A-Z]+)\$?\d+/.exec(address);
-let off = 0;
-if (m) { for (const ch of m[1]) off = off * 26 + (ch.charCodeAt(0) - 64); off -= 1; }
-
-const at = (row, absCol) => (absCol - off >= 0 ? row[absCol - off] : undefined);
-
+// Vùng đọc luôn cố định ở A1 (xem url ở trên) nên chỉ số mảng trùng thẳng với
+// chỉ số cột — cột B là [1], E là [4], F là [5], không cần bù trừ offset như
+// parseNote() phải làm cho một vùng bất kỳ. Cột E/F là bố cục sheet thật, việc
+// liệt kê thẳng ở đây là hợp lý cho một bản dump chẩn đoán.
 const codes = {};
 for (const row of values) {
-  const c = at(row, 4);
-  const f = at(row, 5);
+  const c = row[4];
+  const f = row[5];
   if (typeof c === 'string' && typeof f === 'string' && c.trim() && f.trim()) {
     codes[c.trim().toUpperCase()] = f.trim();
   }
 }
 
-const rawCutoff = values[0] ? at(values[0], 1) : undefined;
-const n = typeof rawCutoff === 'number' ? rawCutoff : Number.parseInt(String(rawCutoff ?? ''), 10);
-const cutoff = Number.isInteger(n) && n >= 1 && n <= 28 ? n : 7;
-
 console.log('');
 console.log('ma viet tat :', JSON.stringify(codes));
-console.log('moc chot    :', cutoff, Number.isInteger(n) && n >= 1 && n <= 28 ? '(doc tu B1)' : '(mac dinh)');
+console.log('o B1 (moc chot):', JSON.stringify(values[0]?.[1]), `(${typeof values[0]?.[1]})`);
 console.log(Object.keys(codes).length > 0 ? '=> OK' : '=> RONG — kiem tra lai cot E/F cua sheet Note');
