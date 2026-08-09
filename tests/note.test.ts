@@ -76,6 +76,14 @@ describe('mốc chốt sao kê', () => {
   it('vùng không chứa ô B1 → mặc định 7, không được đọc nhầm ô khác', () =>
     expect(parseNote(usedRangeShape).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
 
+  it('vùng bắt đầu từ cột B: ô B1 là phần tử ĐẦU của mảng, không phải phần tử thứ hai', () =>
+    // Chốt chặn cho phần bù trừ offset trong readCutoff. Bỏ bù trừ đi thì hàm
+    // đọc row[1] = '' và rơi về mặc định 7 — test này đỏ ngay.
+    expect(parseNote({
+      address: 'Note!B1:F2',
+      values: [[4, '', '', '', '']],
+    }).cutoffDay).toBe(4));
+
   it('mảng rỗng → mặc định 7', () =>
     expect(parseNote({ address: 'Note!A1:H6', values: [] }).cutoffDay)
       .toBe(DEFAULT_CUTOFF_DAY));
