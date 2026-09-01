@@ -19,12 +19,13 @@ const b = await res.json();
 if (b.user_code) {
   console.log('OK: app da bat public client flows, /reauth chay duoc.');
   console.log(`Ma thu: ${b.user_code} (bo qua, tu het han sau ${b.expires_in}s)`);
-  process.exit(0);
+} else {
+  console.error('CHUA CHAY DUOC:', b.error_description ?? b.error ?? res.status);
+  if (String(b.error_description ?? '').includes('mobile')) {
+    console.error('\n-> Azure > App registrations > telegram-expense-bot > Authentication');
+    console.error('   > "Allow public client flows" = Yes. Roi chay lai lenh nay.');
+  }
+  // Dat exitCode chu khong goi process.exit(): thoat dot ngot luc socket cua fetch
+  // chua dong xong lam libuv abort tren Windows, va ma thoat thanh rac (127).
+  process.exitCode = 1;
 }
-
-console.error('CHUA CHAY DUOC:', b.error_description ?? b.error ?? res.status);
-if (String(b.error_description ?? '').includes('mobile')) {
-  console.error('\n-> Azure > App registrations > telegram-expense-bot > Authentication');
-  console.error('   > "Allow public client flows" = Yes. Roi chay lai lenh nay.');
-}
-process.exit(1);
