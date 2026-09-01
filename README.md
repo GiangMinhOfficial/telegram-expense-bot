@@ -38,7 +38,8 @@ Vị trí của ngày và mô tả linh hoạt — bot quét token, không đọ
 
 ### Lệnh khác
 
-`/undo` hoàn tác khoản gần nhất · `/today` chi tiêu hôm nay · `/thang` tổng tháng này · `/help`
+`/undo` hoàn tác khoản gần nhất · `/today` chi tiêu hôm nay · `/thang` tổng tháng này
+· `/reauth` cấp quyền lại OneDrive · `/help`
 
 ### Số tiền
 
@@ -120,11 +121,16 @@ thì ô hiện số serial thô `46242`. Xem `docs/SPIKE-RESULT.md`.
 
 ### Việc bảo trì duy nhất
 
-**Client secret trên Azure có hạn dùng.** Hết hạn là bot ngừng ghi được và bạn nhận tin
-`🔑 Bot mất quyền ghi OneDrive`. Khi đó: tạo secret mới trên portal.azure.com, cập nhật
-`.dev.vars`, rồi `node scripts/push-secrets.mjs --target=real && npm run deploy`.
+**Refresh token chết thì cấp lại ngay trong chat.** Bot báo `🔑 Hết hiệu lực xác thực`
+thì gửi `/reauth`, nhập mã ở `microsoft.com/devicelogin`, rồi gửi `/reauth` lần nữa.
+Không cần mở laptop. Chi tiết ở `docs/SETUP.md` mục 6.
 
-Ngày hết hạn ghi ở `docs/SETUP.md` mục 1.
+Bot in ra refresh token mới — **chép vào `.dev.vars`**, vì D1 và `.dev.vars` dùng chung
+một chuỗi token nên chạy `scripts/*.mjs` là làm token phía bot chết, và ngược lại.
+
+Client secret trên Azure vẫn có hạn dùng (ghi ở `docs/SETUP.md` mục 1) nhưng **không còn
+làm bot ngừng ghi** — từ khi bật public client flows, Microsoft không kiểm nó nữa và
+Worker cũng thôi gửi. Chỉ `npm run auth` còn cần.
 
 ### Đừng mở file gốc bằng Excel desktop khi đang dùng bot
 

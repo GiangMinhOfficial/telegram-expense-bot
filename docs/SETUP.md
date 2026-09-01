@@ -21,10 +21,17 @@ Sau khi tạo:
 
 1. Chép **Application (client) ID** → `MS_CLIENT_ID`
 2. **Certificates & secrets** → **New client secret** → chép cột **Value** (không phải Secret ID) → `MS_CLIENT_SECRET`
-   - Hạn dùng: `<điền>` — **hết hạn là bot ngừng ghi được**, phải tạo secret mới và nạp lại
+   - Hạn dùng: `<điền>`. Bot **không dùng secret này nữa** (xem mục 4 trên và mục 6);
+     chỉ còn `npm run auth` cần tới, nên hết hạn không làm bot ngừng ghi.
 3. **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions** → thêm:
    - `Files.ReadWrite`
    - `offline_access`
+4. **Authentication** → **Allow public client flows** = **Yes**
+   - Bắt buộc cho device code flow của `/reauth`. Thiếu nó Microsoft trả
+     `AADSTS70002: ... client application must be marked as 'mobile'`.
+   - Đánh đổi đã biết và đã chọn: từ lúc bật, Microsoft **không kiểm**
+     `client_secret` ở endpoint token nữa. Refresh token tự nó thành chìa khoá.
+   - Kiểm bằng: `npm run verify:reauth`
 
 ---
 
@@ -42,6 +49,13 @@ Kỳ vọng dòng cuối: `File: Theo dõi chi tiêu.xlsx  (209521 bytes)` (kíc
 Nếu báo `KHONG TIM THAY FILE`: kiểm lại hằng `FILE_PATH` trong script.
 Thư mục đồng bộ cục bộ `D:\Documents\Onedrive` tương ứng gốc OneDrive,
 nên đường dẫn trên cloud là `/Documents/TCCN/Theo dõi chi tiêu.xlsx`.
+
+Chỉ chạy **một lần lúc dựng dự án**. Về sau mất quyền thì dùng `/reauth` (mục 6),
+không phải mở lại laptop.
+
+⚠️ Sau khi bật *Allow public client flows* ở mục 1, redirect URI kiểu **Web** có thể
+không còn hợp lệ cho script này. Nếu `npm run auth` hỏng thì đường thay thế là `/reauth`,
+và token nó in ra chính là thứ chép vào `.dev.vars`.
 
 ---
 
@@ -98,16 +112,64 @@ Kỳ vọng: `{"ok":true,"result":true,...}`
 
 ---
 
+## 6. Cấp quyền lại khi bot mất quyền ghi
+
+Bot báo `🔑 Hết hiệu lực xác thực` nghĩa là refresh token đã chết. Sửa ngay trong chat:
+
+1. Gửi `/reauth` → bot đưa một mã ngắn
+2. Mở `microsoft.com/devicelogin`, nhập mã, đăng nhập, bấm đồng ý
+3. Gửi `/reauth` **lần nữa** → bot lấy quyền về và in ra refresh token mới
+
+Mã sống 15 phút. Quá hạn thì gửi `/reauth` lấy mã khác.
+
+**Chép refresh token bot in ra vào `.dev.vars`.** D1 của Worker và `.dev.vars` là hai
+người giữ trên **cùng một chuỗi token** (xem `CONTEXT.md`) — bên nào đem token đi đổi
+trước thì bên kia chết ngay.
+
+| Việc vừa làm              | Hậu quả                                       |
+| ------------------------- | --------------------------------------------- |
+| Chạy bất kỳ `scripts/*.mjs` | Token phía bot chết → phải `/reauth`         |
+| Bot ghi một khoản          | Token trong `.dev.vars` chết → `invalid_grant` |
+
+Nghĩa là mỗi lần `/reauth` mua được **đúng một** lượt chạy script. Cách thoát hẳn là
+đăng ký một app Azure riêng cho `scripts/` — đã cân nhắc, tạm chưa làm.
+
+Khoản chi gõ vào đúng lúc mất quyền thì **không được ghi và không vào hàng đợi** —
+nhập lại sau khi `/reauth` xong.
+
+`/reauth` cố ý **không** nằm trong danh sách BotFather ở mục 4; nó chỉ có trong `/help`.
+
+---
+
 ## Bí mật cần nạp cho Worker
 
 ```bash
 npx wrangler secret put MS_CLIENT_ID
-npx wrangler secret put MS_CLIENT_SECRET
-npx wrangler secret put MS_REFRESH_TOKEN
 npx wrangler secret put DRIVE_ITEM_ID
 npx wrangler secret put TELEGRAM_BOT_TOKEN
 npx wrangler secret put TELEGRAM_SECRET
 npx wrangler secret put ALLOWED_CHAT_ID
 ```
 
+Hoặc nạp cả loạt từ `.dev.vars`: `node scripts/push-secrets.mjs --target=real`
+
+`MS_CLIENT_SECRET` và `MS_REFRESH_TOKEN` **không còn là secret của Worker**. Nếu đã
+từng nạp thì gỡ đi cho sạch:
+
+```bash
+npx wrangler secret delete MS_CLIENT_SECRET
+npx wrangler secret delete MS_REFRESH_TOKEN
+```
+
 `.dev.vars` chỉ dùng cho chạy local và cho `scripts/spike.mjs`. File này **nằm trong `.gitignore`**, không bao giờ commit.
+
+
+---
+
+## Migration D1
+
+```bash
+npx wrangler d1 migrations apply expense-bot --remote
+```
+
+`0002_pending_device_code.sql` giữ device code giữa hai lần gửi `/reauth`.
