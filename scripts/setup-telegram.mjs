@@ -73,6 +73,7 @@ const commands = [
   ['undo', 'Hoàn tác khoản vừa ghi'],
   ['today', 'Xem chi tiêu hôm nay'],
   ['thang', 'Xem tổng tháng này'],
+  ['reauth', 'Cấp quyền lại OneDrive'],
   ['help', 'Hướng dẫn cú pháp'],
 ].map(([command, description]) => ({ command, description }));
 

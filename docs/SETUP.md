@@ -137,7 +137,7 @@ Nghĩa là mỗi lần `/reauth` mua được **đúng một** lượt chạy sc
 Khoản chi gõ vào đúng lúc mất quyền thì **không được ghi và không vào hàng đợi** —
 nhập lại sau khi `/reauth` xong.
 
-`/reauth` cố ý **không** nằm trong danh sách BotFather ở mục 4; nó chỉ có trong `/help`.
+`/reauth` nằm trong danh sách lệnh ở mục 4, nên nó hiện trong menu của Telegram.
 
 ---
 
