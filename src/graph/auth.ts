@@ -1,4 +1,4 @@
-import { getToken, saveRotatedToken, saveToken } from '../db';
+import { getToken, saveRotatedToken } from '../db';
 import type { Env } from '../env';
 
 export const TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
@@ -10,24 +10,23 @@ export class AuthExpiredError extends Error {}
 
 export async function getAccessToken(env: Env): Promise<string> {
   const stored = await getToken(env.DB);
+  // Kho trống thì chỉ còn một đường dựng lại: /reauth. Không còn secret nạp mồi nữa.
+  if (!stored) throw new AuthExpiredError('Kho token trống — gửi /reauth để cấp quyền');
 
-  if (stored?.accessToken && stored.expiresAt - SKEW_MS > Date.now()) {
+  if (stored.accessToken && stored.expiresAt - SKEW_MS > Date.now()) {
     return stored.accessToken;
   }
 
-  // Kho trống là lần chạy đầu: nạp refresh token khởi tạo từ secret vào D1.
-  // Chỉ nhánh này được ghi đè vô điều kiện, vì chưa có dòng nào để mà đua.
-  const redeemed = stored?.refreshToken ?? env.MS_REFRESH_TOKEN;
-  if (!redeemed) throw new AuthExpiredError('Chưa có refresh token trong D1');
-
+  // Không gửi client_secret: app đã bật "Allow public client flows" cho device
+  // code, và từ lúc đó Microsoft không kiểm secret ở endpoint này nữa. Gửi một
+  // giá trị không ai kiểm chỉ tạo cảm giác an toàn giả.
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: env.MS_CLIENT_ID,
-      client_secret: env.MS_CLIENT_SECRET,
       grant_type: 'refresh_token',
-      refresh_token: redeemed,
+      refresh_token: stored.refreshToken,
       scope: SCOPE,
     }),
   });
@@ -42,18 +41,13 @@ export async function getAccessToken(env: Env): Promise<string> {
 
   // LƯU NGAY. Từ thời điểm này refresh token cũ đã bị vô hiệu ở phía Microsoft —
   // xác nhận bằng thực nghiệm ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
-  const next = {
-    refreshToken: body.refresh_token ?? redeemed,
+  // Thua cuộc đua thì bỏ token của mình đi, KHÔNG ghi đè: xem saveRotatedToken.
+  // Access token vừa lấy vẫn sống hết giờ nên lượt chạy này cứ đi tiếp.
+  await saveRotatedToken(env.DB, stored.refreshToken, {
+    refreshToken: body.refresh_token ?? stored.refreshToken,
     accessToken: body.access_token,
     expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
-  };
-  if (stored) {
-    // Thua cuộc đua thì bỏ token của mình đi, KHÔNG ghi đè: xem saveRotatedToken.
-    // Access token vừa lấy vẫn sống hết giờ nên lượt chạy này cứ đi tiếp.
-    await saveRotatedToken(env.DB, redeemed, next);
-  } else {
-    await saveToken(env.DB, next);
-  }
+  });
 
   return body.access_token;
 }
