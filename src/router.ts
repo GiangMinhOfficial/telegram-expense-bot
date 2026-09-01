@@ -5,6 +5,7 @@ import type { Env } from './env';
 import { AuthExpiredError } from './graph/auth';
 import { askAmount, resolveAmount } from './handlers/ambiguous';
 import { handleMonth, handleToday } from './handlers/query';
+import { handleReauth } from './handlers/reauth';
 import { handleUndo } from './handlers/undo';
 import { type ExactEntry, performWrite } from './handlers/write';
 import { parseMessage } from './parse/message';
@@ -40,6 +41,8 @@ export async function handleUpdate(env: Env, update: TelegramUpdate): Promise<vo
   if (/^\/undo\b/i.test(text)) { await handleUndo(env, chatId); return; }
   if (/^\/today\b/i.test(text)) { await handleToday(env, chatId); return; }
   if (/^\/thang\b/i.test(text)) { await handleMonth(env, chatId); return; }
+  // Đặt trên loadNote: /reauth phải chạy được đúng lúc bot không còn quyền đọc.
+  if (/^\/reauth\b/i.test(text)) { await handleReauth(env, chatId); return; }
 
   const note = await loadNote(env);
   const parsed = parseMessage(text, Date.now(), note.shortcodes);
@@ -71,7 +74,11 @@ export async function handleUpdate(env: Env, update: TelegramUpdate): Promise<vo
     await performWrite(env, chatId, exact);
   } catch (err) {
     if (err instanceof AuthExpiredError) {
-      await sendMessage(env, chatId, '🔑 Bot mất quyền ghi OneDrive. Cần cấp quyền lại.');
+      await sendMessage(
+        env, chatId,
+        '🔑 Hết hiệu lực xác thực, chưa ghi được khoản này.\n'
+        + 'Gửi /reauth để cấp quyền lại, rồi nhập lại khoản.',
+      );
       return;
     }
     // Graph lỗi → không được mất khoản chi. Đưa vào hàng đợi, cron sẽ thử lại.

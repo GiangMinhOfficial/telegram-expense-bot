@@ -125,3 +125,26 @@ export async function logWrite(
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).bind(r.tableName, r.rowIndex, r.description, r.amount, r.dateSerial, Date.now()).run();
 }
+
+export interface PendingDeviceCode { deviceCode: string; expiresAt: number; intervalS: number }
+
+export async function putDeviceCode(db: D1Database, d: PendingDeviceCode): Promise<void> {
+  await db.prepare(
+    `INSERT INTO pending_device_code (id, device_code, expires_at, interval_s) VALUES (1, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET device_code = excluded.device_code,
+       expires_at = excluded.expires_at, interval_s = excluded.interval_s`,
+  ).bind(d.deviceCode, d.expiresAt, d.intervalS).run();
+}
+
+export async function getDeviceCode(db: D1Database): Promise<PendingDeviceCode | null> {
+  const r = await db.prepare(
+    'SELECT device_code, expires_at, interval_s FROM pending_device_code WHERE id = 1',
+  ).first<{ device_code: string; expires_at: number; interval_s: number }>();
+  return r
+    ? { deviceCode: r.device_code, expiresAt: r.expires_at, intervalS: r.interval_s }
+    : null;
+}
+
+export async function clearDeviceCode(db: D1Database): Promise<void> {
+  await db.prepare('DELETE FROM pending_device_code WHERE id = 1').run();
+}

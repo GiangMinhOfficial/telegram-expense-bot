@@ -16,7 +16,8 @@
     "auth": "node scripts/get-refresh-token.mjs",
     "setup:telegram": "node scripts/setup-telegram.mjs",
     "setup:note": "node scripts/setup-note.mjs",
-    "verify:card": "node scripts/verify-card.mjs"
+    "verify:card": "node scripts/verify-card.mjs",
+    "verify:reauth": "node scripts/verify-reauth.mjs"
   },
   "license": "ISC",
   "devDependencies": {

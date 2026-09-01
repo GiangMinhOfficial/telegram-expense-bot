@@ -1,8 +1,8 @@
 import { getToken, saveRotatedToken, saveToken } from '../db';
 import type { Env } from '../env';
 
-const TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
-const SCOPE = 'Files.ReadWrite offline_access';
+export const TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
+export const SCOPE = 'Files.ReadWrite offline_access';
 /** Làm mới sớm 5 phút để không dùng token sắp hết hạn giữa chừng. */
 const SKEW_MS = 5 * 60 * 1000;
 

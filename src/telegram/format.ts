@@ -88,8 +88,41 @@ export function helpText(note: NoteConfig): string {
     `Chốt sao kê ngày ${note.cutoffDay} — quẹt sau ngày đó thì tính vào tháng sau`,
     '',
     '<b>Lệnh khác</b>',
-    '/undo /today /thang /help',
+    '/undo /today /thang /reauth /help',
     '',
     `<b>Mã viết tắt</b>\n${esc(codes || '(chưa có)')}`,
+  ].join('\n');
+}
+
+export function deviceCodePrompt(
+  userCode: string, verificationUri: string, minutes: number,
+): string {
+  return [
+    '🔑 <b>Cấp quyền lại OneDrive</b>',
+    '',
+    `1. Mở ${esc(verificationUri)}`,
+    `2. Nhập mã <code>${esc(userCode)}</code>`,
+    '3. Đăng nhập và bấm đồng ý',
+    '',
+    `Mã sống ${minutes} phút.`,
+    '<b>Xong bước 3 thì gửi lại /reauth</b> để bot lấy quyền về.',
+  ].join('\n');
+}
+
+/**
+ * Trả refresh token mới ra chat để chép tay vào .dev.vars.
+ *
+ * D1 của Worker và .dev.vars là hai người giữ trên cùng một chuỗi token
+ * (xem CONTEXT.md), nên bên nào dùng trước là bên kia chết. Dòng cảnh báo cuối
+ * là cái giá đã biết và đã chọn của cách làm này.
+ */
+export function reauthDone(refreshToken: string): string {
+  return [
+    '✅ Đã cấp quyền lại. Bot ghi được rồi.',
+    '',
+    'Refresh token mới — chép vào <code>.dev.vars</code> để scripts chạy được:',
+    `<code>${esc(refreshToken)}</code>`,
+    '',
+    '⚠️ Chạy bất kỳ script nào cũng làm token phía bot chết theo. Lúc đó gửi /reauth lần nữa.',
   ].join('\n');
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { carryOverRefusal, confirmation, formatVND } from '../src/telegram/format';
+import {
+  carryOverRefusal, confirmation, deviceCodePrompt, formatVND, reauthDone,
+} from '../src/telegram/format';
 
 describe('formatVND', () => {
   it.each([[40_000, '40.000đ'], [3_240_000, '3.240.000đ'], [0, '0đ'], [999, '999đ']])(
@@ -109,4 +111,33 @@ describe('carryOverRefusal', () => {
     expect(s).toContain('3.000đ');
     expect(s).toContain('3.000.000đ');
   });
+});
+
+describe('deviceCodePrompt', () => {
+  const html = deviceCodePrompt('ABCD-EFGH', 'https://microsoft.com/devicelogin', 15);
+
+  it('mã người dùng nằm trong <code> để chạm là chép được', () =>
+    expect(html).toContain('<code>ABCD-EFGH</code>'));
+
+  it('có link để mở', () => expect(html).toContain('https://microsoft.com/devicelogin'));
+
+  it('nói rõ mã sống bao lâu', () => expect(html).toContain('15 phút'));
+
+  it('dặn gửi lại /reauth — thiếu câu này là luồng cụt', () =>
+    expect(html).toContain('gửi lại /reauth'));
+});
+
+describe('reauthDone', () => {
+  const html = reauthDone('0.AY8-refresh-token');
+
+  it('trả refresh token mới trong <code> để chép vào .dev.vars', () =>
+    expect(html).toContain('<code>0.AY8-refresh-token</code>'));
+
+  it('nhắc .dev.vars để biết chép đi đâu', () => expect(html).toContain('.dev.vars'));
+
+  it('cảnh báo chạy script sẽ làm token phía bot chết', () =>
+    expect(html).toContain('/reauth lần nữa'));
+
+  it('thoát ký tự HTML trong token', () =>
+    expect(reauthDone('a<b>c')).toContain('a&lt;b&gt;c'));
 });
