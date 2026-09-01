@@ -19,6 +19,34 @@ export async function saveToken(db: D1Database, t: StoredToken): Promise<void> {
   ).bind(t.refreshToken, t.accessToken, t.expiresAt).run();
 }
 
+/**
+ * Ghi token vừa xoay, CHỈ KHI D1 vẫn đang giữ đúng token ta đem đi đổi.
+ *
+ * Hai lượt chạy song song (cron và webhook) cùng đọc một refresh token rồi cùng
+ * đem đi đổi thì Microsoft trả về hai token khác nhau và vô hiệu cái cũ hơn.
+ * Ghi đè vô điều kiện là lượt ghi sau có thể đặt một token đã chết vào D1 —
+ * từ đó bot hỏng vĩnh viễn. Mệnh đề WHERE dưới đây khiến lượt thua ghi trượt.
+ *
+ * Trả về false = thua cuộc đua. Không phải lỗi: token của ta đã chết, nhưng
+ * access token vừa lấy vẫn dùng được hết giờ nên cứ đi tiếp.
+ */
+export async function saveRotatedToken(
+  db: D1Database, redeemed: string, t: StoredToken,
+): Promise<boolean> {
+  const r = await db.prepare(
+    `UPDATE ms_token SET refresh_token = ?, access_token = ?, expires_at = ?
+      WHERE id = 1 AND refresh_token = ?`,
+  ).bind(t.refreshToken, t.accessToken, t.expiresAt, redeemed).run();
+  return r.meta.changes > 0;
+}
+
+/** Vứt access token hỏng. KHÔNG đụng refresh_token — đọc-rồi-ghi cột đó là chỗ hỏng. */
+export async function clearAccessToken(db: D1Database): Promise<void> {
+  await db.prepare(
+    'UPDATE ms_token SET access_token = NULL, expires_at = 0 WHERE id = 1',
+  ).run();
+}
+
 export async function setLastWrite(db: D1Database, chatId: number, w: LastWrite): Promise<void> {
   await db.prepare(
     `INSERT INTO last_write (chat_id, sheet, table_name, row_index, values_json, created_at)
