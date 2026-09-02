@@ -59,6 +59,47 @@ export async function exchangeRefreshToken(
   };
 }
 
+/**
+ * Đổi authorization code (từ redirect `/oauth/callback`) lấy cặp token đầu
+ * tiên của chuỗi. Cùng endpoint và cùng luật "không secret" với
+ * `exchangeRefreshToken`, chỉ khác grant: kèm `code_verifier` để Microsoft đối
+ * chiếu với `code_challenge` đã gửi lúc `/authorize`, thay cho việc xác thực
+ * bằng client_secret của confidential client.
+ */
+export async function exchangeAuthCode(
+  env: Env, code: string, codeVerifier: string, redirectUri: string,
+): Promise<RefreshOutcome> {
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: env.MS_CLIENT_ID,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+      scope: SCOPE,
+    }),
+  });
+  const body = await res.json<{
+    access_token?: string; refresh_token?: string; expires_in?: number;
+    error?: string; error_description?: string;
+  }>();
+
+  if (!res.ok || !body.access_token) {
+    return {
+      kind: 'failed',
+      error: body.error_description ?? body.error ?? `HTTP ${res.status}`,
+    };
+  }
+  return {
+    kind: 'ok',
+    refreshToken: body.refresh_token ?? null,
+    accessToken: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  };
+}
+
 export async function getAccessToken(env: Env): Promise<string> {
   const stored = await getToken(env.DB);
   // Kho trống thì chỉ còn một đường dựng lại: /reauth. Không còn secret nạp mồi nữa.

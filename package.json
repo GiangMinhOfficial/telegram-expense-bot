@@ -13,11 +13,9 @@
     "spike": "node scripts/spike.mjs",
     "spike:prepare": "node scripts/make-test-copy.mjs",
     "spike:cleanup": "node scripts/drop-test-copy.mjs",
-    "auth": "node scripts/get-refresh-token.mjs",
     "setup:telegram": "node scripts/setup-telegram.mjs",
     "setup:note": "node scripts/setup-note.mjs",
-    "verify:card": "node scripts/verify-card.mjs",
-    "verify:reauth": "node scripts/verify-reauth.mjs"
+    "verify:card": "node scripts/verify-card.mjs"
   },
   "license": "ISC",
   "devDependencies": {

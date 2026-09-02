@@ -126,25 +126,25 @@ export async function logWrite(
   ).bind(r.tableName, r.rowIndex, r.description, r.amount, r.dateSerial, Date.now()).run();
 }
 
-export interface PendingDeviceCode { deviceCode: string; expiresAt: number; intervalS: number }
+export interface PendingAuth { codeVerifier: string; state: string; expiresAt: number }
 
-export async function putDeviceCode(db: D1Database, d: PendingDeviceCode): Promise<void> {
+export async function putPendingAuth(db: D1Database, p: PendingAuth): Promise<void> {
   await db.prepare(
-    `INSERT INTO pending_device_code (id, device_code, expires_at, interval_s) VALUES (1, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET device_code = excluded.device_code,
-       expires_at = excluded.expires_at, interval_s = excluded.interval_s`,
-  ).bind(d.deviceCode, d.expiresAt, d.intervalS).run();
+    `INSERT INTO pending_auth (id, code_verifier, state, expires_at) VALUES (1, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET code_verifier = excluded.code_verifier,
+       state = excluded.state, expires_at = excluded.expires_at`,
+  ).bind(p.codeVerifier, p.state, p.expiresAt).run();
 }
 
-export async function getDeviceCode(db: D1Database): Promise<PendingDeviceCode | null> {
+export async function getPendingAuth(db: D1Database): Promise<PendingAuth | null> {
   const r = await db.prepare(
-    'SELECT device_code, expires_at, interval_s FROM pending_device_code WHERE id = 1',
-  ).first<{ device_code: string; expires_at: number; interval_s: number }>();
+    'SELECT code_verifier, state, expires_at FROM pending_auth WHERE id = 1',
+  ).first<{ code_verifier: string; state: string; expires_at: number }>();
   return r
-    ? { deviceCode: r.device_code, expiresAt: r.expires_at, intervalS: r.interval_s }
+    ? { codeVerifier: r.code_verifier, state: r.state, expiresAt: r.expires_at }
     : null;
 }
 
-export async function clearDeviceCode(db: D1Database): Promise<void> {
-  await db.prepare('DELETE FROM pending_device_code WHERE id = 1').run();
+export async function clearPendingAuth(db: D1Database): Promise<void> {
+  await db.prepare('DELETE FROM pending_auth WHERE id = 1').run();
 }

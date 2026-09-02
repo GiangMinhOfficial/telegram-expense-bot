@@ -15,51 +15,26 @@ Tại https://portal.azure.com → **App registrations** → **New registration*
 |---|---|
 | Name | `telegram-expense-bot` |
 | Supported account types | **Personal Microsoft accounts only** |
-| Redirect URI | *Web* → `http://localhost:8788/callback` |
+| Redirect URI | *Mobile and desktop applications* → `https://<URL_WORKER>/oauth/callback` |
+
+`<URL_WORKER>` chỉ biết được sau khi `npm run deploy` lần đầu (mục 4) — đăng ký app trước để
+lấy `MS_CLIENT_ID`, deploy xong quay lại **Authentication** thêm redirect URI này cũng được.
+
+App là **public client thật** — không tạo client secret, không có gì để hết hạn. Redirect URI
+phải đăng ký đúng nền tảng **"Mobile and desktop applications"**, KHÔNG phải "Web": nền tảng
+quyết định loại client, không phải công tắc "Allow public client flows" (xem `CONTEXT.md`).
 
 Sau khi tạo:
 
 1. Chép **Application (client) ID** → `MS_CLIENT_ID`
-2. **Certificates & secrets** → **New client secret** → chép cột **Value** (không phải Secret ID) → `MS_CLIENT_SECRET`
-   - Hạn dùng: `<điền>`. Bot **không dùng secret này nữa** (xem mục 4 trên và mục 6);
-     chỉ còn `npm run auth` cần tới, nên hết hạn không làm bot ngừng ghi.
-3. **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions** → thêm:
+2. **API permissions** → **Add a permission** → **Microsoft Graph** → **Delegated permissions** → thêm:
    - `Files.ReadWrite`
    - `offline_access`
-4. **Authentication** → **Allow public client flows** = **Yes**
-   - Bắt buộc cho device code flow của `/reauth`. Thiếu nó Microsoft trả
-     `AADSTS70002: ... client application must be marked as 'mobile'`.
-   - Đánh đổi đã biết và đã chọn: từ lúc bật, Microsoft **không kiểm**
-     `client_secret` ở endpoint token nữa. Refresh token tự nó thành chìa khoá.
-   - Kiểm bằng: `npm run verify:reauth`
+3. **Authentication** → **Allow public client flows** = **Yes**
 
 ---
 
-## 2. Lấy refresh token
-
-```bash
-npm run auth
-```
-
-Script hỏi client id + secret, in ra link đăng nhập, rồi in ra 4 dòng biến môi trường.
-Chép chúng vào file `.dev.vars` ở thư mục gốc dự án.
-
-Kỳ vọng dòng cuối: `File: Theo dõi chi tiêu.xlsx  (209521 bytes)` (kích thước có thể đổi theo thời gian).
-
-Nếu báo `KHONG TIM THAY FILE`: kiểm lại hằng `FILE_PATH` trong script.
-Thư mục đồng bộ cục bộ `D:\Documents\Onedrive` tương ứng gốc OneDrive,
-nên đường dẫn trên cloud là `/Documents/TCCN/Theo dõi chi tiêu.xlsx`.
-
-Chỉ chạy **một lần lúc dựng dự án**. Về sau mất quyền thì dùng `/reauth` (mục 6),
-không phải mở lại laptop.
-
-⚠️ Sau khi bật *Allow public client flows* ở mục 1, redirect URI kiểu **Web** có thể
-không còn hợp lệ cho script này. Nếu `npm run auth` hỏng thì đường thay thế là `/reauth`,
-và token nó in ra chính là thứ chép vào `.dev.vars`.
-
----
-
-## 3. Tạo bot Telegram
+## 2. Tạo bot Telegram
 
 Ngày làm: `<điền>`
 
@@ -76,7 +51,7 @@ Ngày làm: `<điền>`
 
 ---
 
-## 4. Đăng ký danh sách lệnh với BotFather
+## 3. Đăng ký danh sách lệnh với BotFather
 
 Nhắn `/setcommands` → chọn bot → dán:
 
@@ -98,7 +73,7 @@ help - Hướng dẫn cú pháp
 
 ---
 
-## 5. Đăng ký webhook
+## 4. Đăng ký webhook
 
 Làm **sau khi** đã `npm run deploy` lần đầu và có URL Worker:
 
@@ -112,15 +87,17 @@ Kỳ vọng: `{"ok":true,"result":true,...}`
 
 ---
 
-## 6. Cấp quyền lại khi bot mất quyền ghi
+## 5. Cấp quyền — lần đầu dựng kho token, và mỗi lần bot mất quyền ghi
 
-Bot báo `🔑 Hết hiệu lực xác thực` nghĩa là refresh token đã chết. Sửa ngay trong chat:
+Cùng một lệnh cho cả hai việc: dựng kho token lúc mới deploy (kho trống) và cấp lại khi bot
+báo `🔑 Hết hiệu lực xác thực` (refresh token đã chết). Không cần mở laptop, làm thẳng trong chat:
 
-1. Gửi `/reauth` → bot đưa một mã ngắn
-2. Mở `microsoft.com/devicelogin`, nhập mã, đăng nhập, bấm đồng ý
-3. Gửi `/reauth` **lần nữa** → bot lấy quyền về và in ra refresh token mới
+1. Gửi `/reauth` → bot trả một link đăng nhập Microsoft
+2. Bấm link, đăng nhập, bấm đồng ý
+3. Microsoft tự redirect trình duyệt về Worker (`/oauth/callback`) — bot tự đổi lấy quyền,
+   **không cần gửi lại `/reauth`**
 
-Mã sống 15 phút. Quá hạn thì gửi `/reauth` lấy mã khác.
+Link sống 15 phút. Quá hạn thì gửi `/reauth` lấy link khác.
 
 **Chép refresh token bot in ra vào `.dev.vars`.** D1 của Worker và `.dev.vars` là hai
 người giữ trên **cùng một chuỗi token** (xem `CONTEXT.md`) — bên nào đem token đi đổi
@@ -137,7 +114,7 @@ Nghĩa là mỗi lần `/reauth` mua được **đúng một** lượt chạy sc
 Khoản chi gõ vào đúng lúc mất quyền thì **không được ghi và không vào hàng đợi** —
 nhập lại sau khi `/reauth` xong.
 
-`/reauth` nằm trong danh sách lệnh ở mục 4, nên nó hiện trong menu của Telegram.
+`/reauth` nằm trong danh sách lệnh ở mục 3, nên nó hiện trong menu của Telegram.
 
 ---
 
@@ -172,4 +149,6 @@ npx wrangler secret delete MS_REFRESH_TOKEN
 npx wrangler d1 migrations apply expense-bot --remote
 ```
 
-`0002_pending_device_code.sql` giữ device code giữa hai lần gửi `/reauth`.
+`0003_pending_auth.sql` giữ `code_verifier` + `state` (PKCE) giữa lúc gửi `/reauth` và lúc
+Microsoft redirect về `/oauth/callback` — thay cho `0002_pending_device_code.sql` (device code,
+đã bỏ, xem ticket 06 ở `.scratch/reauth-token-chet/`).

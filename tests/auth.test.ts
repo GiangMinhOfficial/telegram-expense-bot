@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { exchangeRefreshToken, getAccessToken } from '../src/graph/auth';
+import { exchangeAuthCode, exchangeRefreshToken, getAccessToken } from '../src/graph/auth';
 import type { Env } from '../src/env';
 
 /**
@@ -63,5 +63,42 @@ describe('getAccessToken', () => {
       kind: 'failed',
       error: 'AADSTS90023: client secret not expected for a public client.',
     });
+  });
+});
+
+describe('exchangeAuthCode', () => {
+  it('gửi code + code_verifier + redirect_uri, KHÔNG gửi client_secret', async () => {
+    let body = new URLSearchParams();
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      body = new URLSearchParams(init.body as string);
+      return new Response(
+        JSON.stringify({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600 }),
+        { headers: { 'content-type': 'application/json' } },
+      );
+    }));
+
+    const outcome = await exchangeAuthCode(
+      fakeEnv(), 'CODE123', 'VERIFIER123', 'https://worker.example.workers.dev/oauth/callback',
+    );
+
+    expect(outcome).toEqual({
+      kind: 'ok', refreshToken: 'RT', accessToken: 'AT', expiresAt: expect.any(Number),
+    });
+    expect(body.get('grant_type')).toBe('authorization_code');
+    expect(body.get('code')).toBe('CODE123');
+    expect(body.get('code_verifier')).toBe('VERIFIER123');
+    expect(body.get('redirect_uri')).toBe('https://worker.example.workers.dev/oauth/callback');
+    expect(body.has('client_secret')).toBe(false);
+  });
+
+  it('code hỏng thì trả lỗi nguyên văn để còn chẩn đoán', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ error: 'invalid_grant', error_description: 'AADSTS70008: mã hết hạn' }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    )));
+
+    const outcome = await exchangeAuthCode(fakeEnv(), 'CODE_CU', 'V', 'https://x/oauth/callback');
+
+    expect(outcome).toEqual({ kind: 'failed', error: 'AADSTS70008: mã hết hạn' });
   });
 });

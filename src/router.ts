@@ -21,7 +21,9 @@ export interface TelegramUpdate {
   };
 }
 
-export async function handleUpdate(env: Env, update: TelegramUpdate): Promise<void> {
+export async function handleUpdate(
+  env: Env, update: TelegramUpdate, origin: string,
+): Promise<void> {
   const cb = update.callback_query;
   if (cb?.data?.startsWith('a:') && cb.message) {
     await resolveAmount(env, cb.id, cb.message.chat.id, cb.data);
@@ -42,7 +44,7 @@ export async function handleUpdate(env: Env, update: TelegramUpdate): Promise<vo
   if (/^\/today\b/i.test(text)) { await handleToday(env, chatId); return; }
   if (/^\/thang\b/i.test(text)) { await handleMonth(env, chatId); return; }
   // Đặt trên loadNote: /reauth phải chạy được đúng lúc bot không còn quyền đọc.
-  if (/^\/reauth\b/i.test(text)) { await handleReauth(env, chatId); return; }
+  if (/^\/reauth\b/i.test(text)) { await handleReauth(env, chatId, origin); return; }
 
   const note = await loadNote(env);
   const parsed = parseMessage(text, Date.now(), note.shortcodes);

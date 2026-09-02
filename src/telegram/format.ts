@@ -94,18 +94,29 @@ export function helpText(note: NoteConfig): string {
   ].join('\n');
 }
 
-export function deviceCodePrompt(
-  userCode: string, verificationUri: string, minutes: number,
-): string {
+export function reauthPrompt(authorizeUrl: string): string {
   return [
     '🔑 <b>Cấp quyền lại OneDrive</b>',
     '',
-    `1. Mở ${esc(verificationUri)}`,
-    `2. Nhập mã <code>${esc(userCode)}</code>`,
-    '3. Đăng nhập và bấm đồng ý',
+    `Mở link này và đăng nhập: ${esc(authorizeUrl)}`,
     '',
-    `Mã sống ${minutes} phút.`,
-    '<b>Xong bước 3 thì gửi lại /reauth</b> để bot lấy quyền về.',
+    'Xong bước đăng nhập, bot tự lấy quyền về — không cần gửi lại /reauth.',
+  ].join('\n');
+}
+
+/**
+ * Đăng nhập xong nhưng chưa tới lượt đổi thử (`adoptChainIfUsable`): Microsoft
+ * từ chối redirect, hoặc chính bước đổi `code` lấy token thất bại. Khác
+ * `reauthUnusable` — ở đây chưa từng có token nào để mà giữ hay ghi đè.
+ */
+export function reauthCodeFailed(error: string): string {
+  return [
+    '⚠️ Đăng nhập không hoàn tất, chưa đổi được quyền.',
+    '',
+    'Microsoft trả lời:',
+    `<code>${esc(error)}</code>`,
+    '',
+    'Gửi /reauth trong Telegram để lấy link mới.',
   ].join('\n');
 }
 

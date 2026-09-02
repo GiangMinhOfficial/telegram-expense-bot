@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  carryOverRefusal, confirmation, deviceCodePrompt, formatVND, reauthDone,
+  carryOverRefusal, confirmation, formatVND, reauthCodeFailed, reauthDone, reauthPrompt,
 } from '../src/telegram/format';
 
 describe('formatVND', () => {
@@ -113,18 +113,29 @@ describe('carryOverRefusal', () => {
   });
 });
 
-describe('deviceCodePrompt', () => {
-  const html = deviceCodePrompt('ABCD-EFGH', 'https://microsoft.com/devicelogin', 15);
+describe('reauthPrompt', () => {
+  const html = reauthPrompt('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?a=b');
 
-  it('mã người dùng nằm trong <code> để chạm là chép được', () =>
-    expect(html).toContain('<code>ABCD-EFGH</code>'));
+  it('có link /authorize để mở', () =>
+    expect(html).toContain('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize'));
 
-  it('có link để mở', () => expect(html).toContain('https://microsoft.com/devicelogin'));
+  it('nói rõ không cần gửi lại /reauth — luồng tự hoàn tất qua redirect', () =>
+    expect(html).toContain('không cần gửi lại /reauth'));
 
-  it('nói rõ mã sống bao lâu', () => expect(html).toContain('15 phút'));
+  it('thoát ký tự HTML trong link', () =>
+    expect(reauthPrompt('https://x?a=1&b=2')).toContain('a=1&amp;b=2'));
+});
 
-  it('dặn gửi lại /reauth — thiếu câu này là luồng cụt', () =>
-    expect(html).toContain('gửi lại /reauth'));
+describe('reauthCodeFailed', () => {
+  const html = reauthCodeFailed('AADSTS70008: mã hết hạn');
+
+  it('nêu nguyên văn lỗi Microsoft trong <code>', () =>
+    expect(html).toContain('<code>AADSTS70008: mã hết hạn</code>'));
+
+  it('dặn gửi /reauth để lấy link mới', () => expect(html).toContain('Gửi /reauth'));
+
+  it('thoát ký tự HTML trong lỗi', () =>
+    expect(reauthCodeFailed('a<b>c')).toContain('a&lt;b&gt;c'));
 });
 
 describe('reauthDone', () => {

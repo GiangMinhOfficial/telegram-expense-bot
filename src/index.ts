@@ -1,9 +1,20 @@
 import type { Env } from './env';
+import { OAUTH_CALLBACK_PATH } from './graph/pkce';
+import { handleOAuthCallback } from './handlers/oauthCallback';
 import { drainOutbox } from './handlers/outbox';
 import { handleUpdate, type TelegramUpdate } from './router';
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
+    const url = new URL(req.url);
+
+    // Đích redirect của Microsoft sau khi đăng nhập xong ở /authorize — không
+    // qua webhook Telegram nên không có secret header nào để kiểm ở đây, xem
+    // handleOAuthCallback.
+    if (req.method === 'GET' && url.pathname === OAUTH_CALLBACK_PATH) {
+      return handleOAuthCallback(env, url);
+    }
+
     if (req.method !== 'POST') return new Response('ok');
 
     // Lớp khoá 1: chỉ Telegram mới biết secret này.
@@ -24,7 +35,7 @@ export default {
 
     // Luôn trả 200, kể cả khi xử lý lỗi — mã khác sẽ khiến Telegram gửi lại liên tục.
     try {
-      await handleUpdate(env, update);
+      await handleUpdate(env, update, url.origin);
     } catch (err) {
       console.error('handleUpdate', err);
     }

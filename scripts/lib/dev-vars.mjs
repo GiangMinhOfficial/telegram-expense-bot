@@ -9,7 +9,7 @@ const FILE = '.dev.vars';
 
 export function loadEnv() {
   if (!existsSync(FILE)) {
-    console.error(`Khong tim thay ${FILE}. Chay "npm run auth" truoc.`);
+    console.error(`Khong tim thay ${FILE}. Gui /reauth trong Telegram, roi chep refresh token bot in ra vao ${FILE} (xem docs/SETUP.md muc 5).`);
     process.exit(1);
   }
   return Object.fromEntries(
@@ -53,7 +53,7 @@ export async function getAccessToken(env) {
   if (!tok.access_token) {
     console.error('LAY ACCESS TOKEN THAT BAI:', tok);
     if (tok.error === 'invalid_grant') {
-      console.error('\nRefresh token da het hieu luc. Chay lai: npm run auth');
+      console.error('\nRefresh token da het hieu luc. Gui /reauth trong Telegram, roi chep refresh token bot in ra vao .dev.vars.');
     }
     process.exit(1);
   }

@@ -122,15 +122,14 @@ thì ô hiện số serial thô `46242`. Xem `docs/SPIKE-RESULT.md`.
 ### Việc bảo trì duy nhất
 
 **Refresh token chết thì cấp lại ngay trong chat.** Bot báo `🔑 Hết hiệu lực xác thực`
-thì gửi `/reauth`, nhập mã ở `microsoft.com/devicelogin`, rồi gửi `/reauth` lần nữa.
-Không cần mở laptop. Chi tiết ở `docs/SETUP.md` mục 6.
+thì gửi `/reauth`, bấm link, đăng nhập — bot tự lấy quyền về qua redirect, không cần gửi
+lại `/reauth`. Không cần mở laptop. Chi tiết ở `docs/SETUP.md` mục 5.
 
 Bot in ra refresh token mới — **chép vào `.dev.vars`**, vì D1 và `.dev.vars` dùng chung
 một chuỗi token nên chạy `scripts/*.mjs` là làm token phía bot chết, và ngược lại.
 
-Client secret trên Azure vẫn có hạn dùng (ghi ở `docs/SETUP.md` mục 1) nhưng **không còn
-làm bot ngừng ghi** — từ khi bật public client flows, Microsoft không kiểm nó nữa và
-Worker cũng thôi gửi. Chỉ `npm run auth` còn cần.
+App là public client thật (không có client secret nào trên Azure để mà hết hạn) — xem
+`docs/SETUP.md` mục 1.
 
 ### Đừng mở file gốc bằng Excel desktop khi đang dùng bot
 

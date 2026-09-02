@@ -17,19 +17,35 @@ người giữ trên cùng một chuỗi — D1 của Worker và `.dev.vars` c�
 nên mỗi bên dùng token là bên kia chết.
 
 **Hết hiệu lực xác thực**:
-Trạng thái quan sát được: bot không đổi được access token nữa. Có bốn nguyên nhân
-khác nhau cần bốn cách sửa khác nhau — người dùng thu hồi quyền, token đã bị dùng
-mất, client secret hết hạn, hoặc kho token trống.
+Trạng thái quan sát được: bot không đổi được access token nữa. Có năm nguyên nhân
+khác nhau cần năm cách sửa khác nhau — người dùng thu hồi quyền, token đã bị dùng
+mất, client secret hết hạn (chỉ còn liên quan nếu app quay lại làm confidential client;
+app hiện tại không có secret nào để hết hạn), kho token trống, hoặc chuỗi chưa từng đổi
+được lần nào dù cấp ra hợp lệ — xem mục "Nguyên nhân thứ năm" bên dưới.
 _Tránh_: "mất quyền ghi" khi dùng như một **chẩn đoán** — nó chỉ đúng cho một
-trong bốn nguyên nhân.
+trong năm nguyên nhân.
 
-**Device code**:
-Chuỗi bí mật Worker giữ để hỏi Microsoft xem người dùng đã đăng nhập xong chưa.
-Không bao giờ hiện cho người dùng.
+**code_verifier / code_challenge (PKCE)**:
+Cặp giá trị Worker sinh ra thay cho client secret khi đổi authorization code lấy token
+(RFC 7636). `code_verifier` là bí mật Worker giữ (cất tạm trong `pending_auth`, không bao
+giờ hiện cho người dùng); `code_challenge` là băm SHA-256 của nó, gửi công khai lúc
+`/authorize`. Microsoft đối chiếu hai giá trị này ở bước đổi code thay vì đòi client secret
+— đây là cách một public client (không giữ được bí mật lâu dài) vẫn chứng minh được chính
+mình là bên đã khởi tạo request.
+_Tránh_: gọi `code_verifier` là "mã" trống không — dễ lẫn với authorization code do Microsoft
+cấp qua redirect.
 
-**User code**:
-Chuỗi ngắn người dùng gõ vào `microsoft.com/devicelogin` trên điện thoại.
-_Tránh_: gọi chung cả hai là "mã" — nhầm hai thứ này là hỏng cả luồng.
+**Nguyên nhân thứ năm của "hết hiệu lực xác thực"**:
+Chuỗi refresh token cấp ra bình thường, không ai thu hồi, kho token không trống, không có
+client secret nào hết hạn (app là public client thật) — nhưng CHÍNH chuỗi đó chưa bao giờ
+đổi được (`invalid_grant` mỗi lần gọi `exchangeRefreshToken`, dù access token cùng lô vẫn gọi
+Graph 200 bình thường trong một giờ). Đo được với chuỗi do device code sinh ra cho tài khoản
+Microsoft cá nhân này (ticket 06 ở `.scratch/reauth-token-chet/`) — không đổi lại được bất kể
+Worker/vị trí, tốc độ lan truyền cấu hình Azure, hay độ trễ giữa lúc cấp và lúc đổi thử.
+_Dấu vân tay_: access token gọi Graph vẫn 200 trong khi refresh token cùng grant đó trả
+`invalid_grant` — khác bốn nguyên nhân kia (thu hồi quyền, token đã dùng mất, secret hết hạn,
+kho trống) đều có dấu hiệu khác đi kèm. `/reauth` giờ dùng authorization_code + PKCE — luồng
+đã biết chạy được cho tài khoản này — để tránh lặp lại nguyên nhân này.
 
 **Thua cuộc đua**:
 Tình huống một lượt chạy Worker đổi token xong thì phát hiện chuỗi đã tiến lên
