@@ -57,7 +57,6 @@ function fakeEnv(db: D1Database): Env {
   return {
     DB: db,
     MS_CLIENT_ID: 'CID',
-    MS_CLIENT_SECRET: 'SECRET',
     DRIVE_ITEM_ID: 'X',
     TELEGRAM_BOT_TOKEN: 'BOT',
     TELEGRAM_SECRET: 'X',

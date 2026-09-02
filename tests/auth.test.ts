@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getAccessToken } from '../src/graph/auth';
+import { exchangeRefreshToken, getAccessToken } from '../src/graph/auth';
 import type { Env } from '../src/env';
 
 /**
- * App trên Azure vẫn là confidential client: endpoint token đòi client_secret ở
- * cả grant authorization_code lẫn grant refresh_token. Đo được ngày 2026-09-02 —
- * bỏ secret đi thì Microsoft trả AADSTS70002 chứ không phải bỏ qua.
+ * App trên Azure là public client thật từ 2026-09-02: redirect URI chuyển
+ * sang platform "Mobile and desktop applications", client secret đã xoá khỏi
+ * Azure. Chiều ngược lại với bản trước (ticket 01): gửi client_secret giờ là
+ * lỗi (`AADSTS90023`), không gửi mới là đúng. Đo được ngày 2026-09-02.
  */
 const stored = { refresh_token: 'RT_CU', access_token: null, expires_at: 0 };
 
@@ -23,7 +24,6 @@ function fakeEnv(): Env {
   return {
     DB: db as unknown as D1Database,
     MS_CLIENT_ID: 'CID',
-    MS_CLIENT_SECRET: 'SECRET',
     DRIVE_ITEM_ID: 'X',
     TELEGRAM_BOT_TOKEN: 'X',
     TELEGRAM_SECRET: 'X',
@@ -34,7 +34,7 @@ function fakeEnv(): Env {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('getAccessToken', () => {
-  it('gửi client_secret khi đổi refresh token', async () => {
+  it('không gửi client_secret khi đổi refresh token', async () => {
     let body = new URLSearchParams();
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
       body = new URLSearchParams(init.body as string);
@@ -45,7 +45,23 @@ describe('getAccessToken', () => {
     }));
 
     await expect(getAccessToken(fakeEnv())).resolves.toBe('AT_MOI');
-    expect(body.get('client_secret')).toBe('SECRET');
+    expect(body.has('client_secret')).toBe(false);
     expect(body.get('refresh_token')).toBe('RT_CU');
+  });
+
+  it('gửi client_secret cho public client là lỗi', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({
+        error: 'invalid_client',
+        error_description: 'AADSTS90023: client secret not expected for a public client.',
+      }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    )));
+
+    const outcome = await exchangeRefreshToken(fakeEnv(), 'RT_CU');
+    expect(outcome).toEqual({
+      kind: 'failed',
+      error: 'AADSTS90023: client secret not expected for a public client.',
+    });
   });
 });

@@ -20,9 +20,10 @@ export type RefreshOutcome =
  * Đổi được thì chuỗi đã tiến lên một bước: token truyền vào coi như đã chết,
  * người gọi phải cất `refreshToken` trong kết quả chứ không phải token cũ.
  *
- * PHẢI gửi client_secret. Bật "Allow public client flows" chỉ mở thêm luồng
- * device code, nó KHÔNG biến app thành public client: endpoint này vẫn trả
- * AADSTS70002 "must include a 'client_secret'" nếu thiếu. Đo lại 2026-09-02.
+ * KHÔNG được gửi client_secret. App đăng ký là public client thật từ
+ * 2026-09-02 (redirect URI chuyển sang platform "Mobile and desktop
+ * applications", client secret đã xoá khỏi Azure) — endpoint trả AADSTS90023
+ * "client secret not expected for a public client" nếu gửi kèm.
  */
 export async function exchangeRefreshToken(
   env: Env, refreshToken: string,
@@ -32,7 +33,6 @@ export async function exchangeRefreshToken(
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: env.MS_CLIENT_ID,
-      client_secret: env.MS_CLIENT_SECRET,
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
       scope: SCOPE,

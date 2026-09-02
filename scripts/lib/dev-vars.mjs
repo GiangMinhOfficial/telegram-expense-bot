@@ -43,7 +43,6 @@ export async function getAccessToken(env) {
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         client_id: env.MS_CLIENT_ID,
-        client_secret: env.MS_CLIENT_SECRET,
         grant_type: 'refresh_token',
         refresh_token: env.MS_REFRESH_TOKEN,
         scope: 'Files.ReadWrite offline_access',
