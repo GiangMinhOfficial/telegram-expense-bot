@@ -17,14 +17,15 @@ export async function getAccessToken(env: Env): Promise<string> {
     return stored.accessToken;
   }
 
-  // Không gửi client_secret: app đã bật "Allow public client flows" cho device
-  // code, và từ lúc đó Microsoft không kiểm secret ở endpoint này nữa. Gửi một
-  // giá trị không ai kiểm chỉ tạo cảm giác an toàn giả.
+  // PHẢI gửi client_secret. Bật "Allow public client flows" chỉ mở thêm luồng
+  // device code, nó KHÔNG biến app thành public client: endpoint này vẫn trả
+  // AADSTS70002 "must include a 'client_secret'" nếu thiếu. Đo lại 2026-09-02.
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: env.MS_CLIENT_ID,
+      client_secret: env.MS_CLIENT_SECRET,
       grant_type: 'refresh_token',
       refresh_token: stored.refreshToken,
       scope: SCOPE,
