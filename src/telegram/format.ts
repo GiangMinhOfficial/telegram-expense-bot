@@ -126,3 +126,23 @@ export function reauthDone(refreshToken: string): string {
     '⚠️ Chạy bất kỳ script nào cũng làm token phía bot chết theo. Lúc đó gửi /reauth lần nữa.',
   ].join('\n');
 }
+
+/**
+ * Cấp quyền xong nhưng chuỗi mới không đổi được: nói thẳng, kèm nguyên văn mã
+ * lỗi để còn chẩn đoán.
+ *
+ * `keptChain` là kho token có chuỗi cũ để giữ lại hay không. Kho trống mà vẫn
+ * hứa "bot ghi bình thường" là đúng cái kiểu trấn an sai ticket này đang dẹp:
+ * lúc đó bot KHÔNG ghi được, và /reauth là đường dựng lại duy nhất.
+ */
+export function reauthUnusable(error: string, keptChain: boolean): string {
+  return [
+    '⚠️ Đã cấp quyền, nhưng chuỗi token mới không đổi được.',
+    keptChain
+      ? 'Chuỗi cũ trong kho được <b>giữ nguyên</b> — còn sống thì bot vẫn ghi bình thường.'
+      : 'Kho token vẫn trống, <b>bot chưa ghi được</b>. Gửi /reauth để thử lại.',
+    '',
+    'Microsoft trả lời:',
+    `<code>${esc(error)}</code>`,
+  ].join('\n');
+}
