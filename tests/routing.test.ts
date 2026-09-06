@@ -19,9 +19,11 @@ interface Destination { table: string; description: string }
 // thẳng `parsed.entry.description`, để ticket 02 ghép tiền tố ở đó thì seam
 // này bắt được thay đổi thay vì chỉ quan sát mỗi bước phân tích.
 //
-// `cutoffOverride` mô phỏng đúng cái router.ts thật làm: không truyền thì lấy
-// mốc mặc định của nguồn đã gõ; truyền vào thì dùng để kiểm công thức tổng
-// quát (mốc nào cũng ra cùng một kết quả, chỉ số khác nhau).
+// `cutoffOverride` mô phỏng trường hợp sheet Note không có mốc riêng cho
+// nguồn đã gõ: router.ts thật luôn truyền `note.cutoffDays` cho `cutoffDayFor`
+// (xem test riêng bên dưới), ở đây bỏ trống tham số thứ hai để lấy đúng mặc
+// định trong code; truyền `cutoffOverride` vào thì dùng để kiểm công thức
+// tổng quát (mốc nào cũng ra cùng một kết quả, chỉ số khác nhau).
 const destination = (text: string, cutoffOverride?: number): Destination => {
   const parsed = parseMessage(text, NOW, {});
   if (!parsed.ok) throw new Error(`không phân tích được: ${parsed.error}`);
@@ -124,4 +126,12 @@ describe('khoản trả sau vắt sang năm sau bị chặn ngay ở chuỗi nà
 
   it('tiền mặt 10/12 vẫn ghi bình thường', () =>
     expect(destination('/food ăn trưa 40k 10/12')).toEqual({ table: 'food_12', description: 'ăn trưa' }));
+});
+
+describe('cutoffDayFor: đúng lời gọi router.ts thật dùng để đưa mốc từ Note vào', () => {
+  it('mốc từ note.cutoffDays đè mốc mặc định trong code', () =>
+    expect(cutoffDayFor('cc', { cc: 20, spl: 24, zlp: 28 })).toBe(20));
+
+  it('không có nguồn → 0, bất kể cutoffDays truyền vào là gì', () =>
+    expect(cutoffDayFor(null, { cc: 20, spl: 24, zlp: 28 })).toBe(0));
 });

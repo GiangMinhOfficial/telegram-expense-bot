@@ -61,7 +61,8 @@ const send = async (text) => {
 const noteRows = (await g(`/worksheets('Note')/range(address='H1:I50')?$select=values`))
   .values ?? [];
 const cutoffRaw = noteRows.find((r) => String(r[0] ?? '').trim().toLowerCase() === 'cc')?.[1];
-const cutoff = Number.isInteger(cutoffRaw) && cutoffRaw >= 1 && cutoffRaw <= 28 ? cutoffRaw : 7;
+const cutoffN = typeof cutoffRaw === 'number' ? cutoffRaw : Number.parseInt(String(cutoffRaw ?? ''), 10);
+const cutoff = Number.isInteger(cutoffN) && cutoffN >= 1 && cutoffN <= 28 ? cutoffN : 7;
 console.log(`Moc chot cc doc tu khoi H-I: ${JSON.stringify(cutoffRaw)} -> dung ${cutoff}`);
 
 const now = new Date(Date.now() + 7 * 3600 * 1000); // gio Viet Nam

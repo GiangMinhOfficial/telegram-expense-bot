@@ -23,8 +23,8 @@ export const isCategory = (s: string): s is CategoryKey =>
  * Tập đóng nguồn trả sau. Khoá = token gõ trong tin nhắn, cũng là tiền tố ghép
  * vào ô mô tả khi ghi (xem `buildRow` ở src/handlers/write.ts).
  *
- * `defaultCutoffDay` là mặc định khai báo trong code; đọc mốc từ sheet `Note`
- * là việc của ticket 03 (xem .scratch/nguon-tra-sau/issues/03-*.md).
+ * `defaultCutoffDay` là mặc định khai báo trong code, dùng khi sheet `Note`
+ * không có mốc riêng cho nguồn đó (xem `note.ts`, khối `H`–`I`).
  */
 export const DEFERRED_SOURCES = {
   cc:  { label: 'Thẻ tín dụng',       emoji: '💳', defaultCutoffDay: 7 },
@@ -41,13 +41,23 @@ export type DeferredSource = keyof typeof DEFERRED_SOURCES;
 export const isDeferredSource = (s: string): s is DeferredSource =>
   Object.prototype.hasOwnProperty.call(DEFERRED_SOURCES, s);
 
+/** Mốc chốt mặc định của cả ba nguồn, khai báo trong code. */
+export const defaultCutoffDays = (): Record<DeferredSource, number> =>
+  Object.fromEntries(
+    Object.entries(DEFERRED_SOURCES).map(([k, v]) => [k, v.defaultCutoffDay]),
+  ) as Record<DeferredSource, number>;
+
 /**
- * Mốc chốt mặc định của một nguồn. `0` khi không có nguồn — giá trị không có
- * ý nghĩa riêng, `paymentMonth` (src/billing.ts) bỏ qua cutoff khi `source` là
- * `null` nên số nào cũng cho cùng kết quả.
+ * Mốc chốt của một nguồn, tra trong `cutoffDays` (mặc định: mặc định khai báo
+ * trong code — `loadNote` trả về bản đã áp mốc từ sheet `Note` khi có). `0`
+ * khi không có nguồn — giá trị không có ý nghĩa riêng, `paymentMonth`
+ * (src/billing.ts) bỏ qua cutoff khi `source` là `null` nên số nào cũng cho
+ * cùng kết quả.
  */
-export const cutoffDayFor = (source: DeferredSource | null): number =>
-  source ? DEFERRED_SOURCES[source].defaultCutoffDay : 0;
+export const cutoffDayFor = (
+  source: DeferredSource | null,
+  cutoffDays: Record<DeferredSource, number> = defaultCutoffDays(),
+): number => (source ? cutoffDays[source] : 0);
 
 export const sheetName = (month: number) => `Tháng ${month}`;
 export const tableName = (cat: CategoryKey, month: number) =>

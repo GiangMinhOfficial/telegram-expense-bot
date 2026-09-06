@@ -1,4 +1,4 @@
-import { DEFERRED_SOURCES, type DeferredSource, isDeferredSource } from './config';
+import { type DeferredSource, defaultCutoffDays, isDeferredSource } from './config';
 import type { Env } from './env';
 import { type SheetData, cellAt, colOffset } from './graph/sheet';
 import { readRange } from './graph/workbook';
@@ -19,10 +19,32 @@ const FULL_COL = 5;   // F
 const SOURCE_COL = 7; // H
 const CUTOFF_COL = 8; // I
 
-function defaultCutoffDays(): Record<DeferredSource, number> {
-  return Object.fromEntries(
-    Object.entries(DEFERRED_SOURCES).map(([k, v]) => [k, v.defaultCutoffDay]),
-  ) as Record<DeferredSource, number>;
+function readShortcodes(sheet: SheetData, off: number): Record<string, string> {
+  const shortcodes: Record<string, string> = {};
+  for (const row of sheet.values) {
+    const code = cellAt(row, CODE_COL, off);
+    const full = cellAt(row, FULL_COL, off);
+    if (typeof code === 'string' && typeof full === 'string' && code.trim() && full.trim()) {
+      shortcodes[code.trim().toUpperCase()] = full.trim();
+    }
+  }
+  return shortcodes;
+}
+
+function readCutoffDays(sheet: SheetData, off: number): Record<DeferredSource, number> {
+  const cutoffDays = defaultCutoffDays();
+  for (const row of sheet.values) {
+    const token = cellAt(row, SOURCE_COL, off);
+    if (typeof token !== 'string') continue;
+    const source = token.trim().toLowerCase();
+    if (!isDeferredSource(source)) continue;
+
+    const raw = cellAt(row, CUTOFF_COL, off);
+    const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
+    // Ngoài 1–28 là vô nghĩa: mốc 29–31 không tồn tại ở mọi tháng.
+    if (Number.isInteger(n) && n >= 1 && n <= 28) cutoffDays[source] = n;
+  }
+  return cutoffDays;
 }
 
 /**
@@ -31,29 +53,7 @@ function defaultCutoffDays(): Record<DeferredSource, number> {
  */
 export function parseNote(sheet: SheetData): NoteConfig {
   const off = colOffset(sheet.address);
-
-  const shortcodes: Record<string, string> = {};
-  const cutoffDays = defaultCutoffDays();
-
-  for (const row of sheet.values) {
-    const code = cellAt(row, CODE_COL, off);
-    const full = cellAt(row, FULL_COL, off);
-    if (typeof code === 'string' && typeof full === 'string' && code.trim() && full.trim()) {
-      shortcodes[code.trim().toUpperCase()] = full.trim();
-    }
-
-    const token = cellAt(row, SOURCE_COL, off);
-    if (typeof token !== 'string') continue;
-    const source = token.trim().toLowerCase();
-    if (!isDeferredSource(source)) continue; // token lạ ở cột H → bỏ qua
-
-    const raw = cellAt(row, CUTOFF_COL, off);
-    const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
-    // Ngoài 1–28 là vô nghĩa: mốc 29–31 không tồn tại ở mọi tháng.
-    if (Number.isInteger(n) && n >= 1 && n <= 28) cutoffDays[source] = n;
-  }
-
-  return { shortcodes, cutoffDays };
+  return { shortcodes: readShortcodes(sheet, off), cutoffDays: readCutoffDays(sheet, off) };
 }
 
 /**

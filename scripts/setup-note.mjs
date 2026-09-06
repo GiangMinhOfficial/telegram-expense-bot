@@ -1,6 +1,13 @@
 // Dat token nguon va moc chot sao ke vao khoi Note!H1:I3 — CHI khi ca khoi dang trong.
 //
 // Tu choi ghi de: neu da co gi o do thi in ra roi dung, de nguoi dung tu quyet.
+//
+// Script nay danh cho dung lai file tu dau (file rong), nen chi kiem tra dung
+// mot vi tri neo co dinh H1:I3. parseNote() (src/note.ts) doc quet ca cot nen
+// chap nhan khoi o bat ky dong nao — neu ai da tu dat khoi o cho khac (vd
+// H5:I7) roi moi chay script nay, no se KHONG thay va ghi them mot khoi thu
+// hai o H1:I3, dung dau ca hai. Kiem tra Excel truoc khi chay trong truong
+// hop do.
 import { getAccessToken, loadEnv } from './lib/dev-vars.mjs';
 
 // Dung dung mac dinh voi src/config.ts (DEFERRED_SOURCES) — doi o mot cho thi

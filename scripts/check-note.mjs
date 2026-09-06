@@ -47,13 +47,23 @@ for (const row of values) {
   }
 }
 
+// Ba token khop voi DEFERRED_SOURCES trong src/config.ts. Liet ke thang ra day
+// (khong import duoc tu .mjs) de bao du ca ba nguon, ke ca nguon nao thieu
+// khoi khoi H-I. Chi la ten token — khong phai con so mac dinh — nen khong
+// pham vao dieu header o tren canh bao ve viec chep lai luat nghiep vu.
+const SOURCE_TOKENS = ['cc', 'spl', 'zlp'];
 const cutoffs = {};
 for (const row of values) {
   const src = row[7];
-  if (typeof src === 'string' && src.trim()) cutoffs[src.trim().toLowerCase()] = row[8];
+  const key = typeof src === 'string' ? src.trim().toLowerCase() : '';
+  if (SOURCE_TOKENS.includes(key)) cutoffs[key] = row[8];
 }
 
 console.log('');
 console.log('ma viet tat :', JSON.stringify(codes));
-console.log('moc chot (khoi H-I):', JSON.stringify(cutoffs));
+console.log('moc chot (khoi H-I), ca ba nguon:');
+for (const t of SOURCE_TOKENS) {
+  const has = Object.prototype.hasOwnProperty.call(cutoffs, t);
+  console.log(`  ${t}: ${has ? JSON.stringify(cutoffs[t]) : '(khong co trong khoi -> dung mac dinh cua code)'}`);
+}
 console.log(Object.keys(codes).length > 0 ? '=> OK' : '=> RONG — kiem tra lai cot E/F cua sheet Note');

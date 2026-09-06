@@ -26,12 +26,23 @@ const usedRangeWithCutoffs = {
 /** Vùng cố định A1:K6 — cái mà loadNote thật sự đọc. Cột A..K = chỉ số 0..10. */
 const fixedRange = (rows: unknown[][]) => ({ address: 'Note!A1:K6', values: rows });
 
+/** Một dòng của khối H–I trong vùng cố định: token ở H (chỉ số 7), mốc ở I (chỉ số 8). */
+const hi = (token: unknown, cutoff: unknown): unknown[] =>
+  ['', '', '', '', '', '', '', token, cutoff, '', ''];
+
 describe('bảng mã viết tắt', () => {
   it('HỒI QUY: vùng bắt đầu từ E4 vẫn đọc được mã — lỗi này đã lên production', () => {
     expect(parseNote(usedRangeShape).shortcodes).toEqual({
       WM: 'Winmart', TC: 'TocoToco', MT: 'Mầm Trà', VM: 'V-mart',
     });
   });
+
+  it('vùng cố định bắt đầu từ A1 cũng đọc được', () =>
+    expect(parseNote(fixedRange([
+      ['', '', '', '', 'WM', 'Winmart', '', '', '', '', ''],
+      ['', '', '', '', 'TC', 'TocoToco', '', '', '', '', ''],
+      ['', '', '', '', 'VM', 'V-mart', '', '', '', '', ''],
+    ])).shortcodes).toEqual({ WM: 'Winmart', TC: 'TocoToco', VM: 'V-mart' }));
 
   it('viết thường trong file vẫn tra được bằng chữ hoa', () =>
     expect(parseNote({
@@ -48,59 +59,40 @@ describe('bảng mã viết tắt', () => {
 
 describe('mốc chốt sao kê — khối H (token) / I (ngày chốt)', () => {
   it('đọc đúng mốc của cả ba nguồn', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'cc', 20, '', ''],
-      ['', '', '', '', '', '', '', 'spl', 22, '', ''],
-      ['', '', '', '', '', '', '', 'zlp', 15, '', ''],
-    ])).cutoffDays).toEqual({ cc: 20, spl: 22, zlp: 15 }));
+    expect(parseNote(fixedRange([hi('cc', 20), hi('spl', 22), hi('zlp', 15)])).cutoffDays)
+      .toEqual({ cc: 20, spl: 22, zlp: 15 }));
 
   it('HỒI QUY: vùng usedRange lệch kiểu Note!E4:K12 vẫn đọc đúng khối H–I', () =>
     expect(parseNote(usedRangeWithCutoffs).cutoffDays).toEqual({ cc: 24, spl: 20, zlp: 15 }));
 
   it('chuỗi số cũng nhận', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'cc', '20', '', ''],
-    ])).cutoffDays.cc).toBe(20));
+    expect(parseNote(fixedRange([hi('cc', '20')])).cutoffDays.cc).toBe(20));
 
   it('token viết hoa hoặc có khoảng trắng vẫn nhận diện được', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', ' CC ', 20, '', ''],
-    ])).cutoffDays.cc).toBe(20));
+    expect(parseNote(fixedRange([hi(' CC ', 20)])).cutoffDays.cc).toBe(20));
 
   it('token lạ ở cột H bị bỏ qua, không làm hỏng gì', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'xyz', 20, '', ''],
-    ])).cutoffDays).toEqual({ cc: 7, spl: 24, zlp: 28 }));
+    expect(parseNote(fixedRange([hi('xyz', 20)])).cutoffDays)
+      .toEqual({ cc: 7, spl: 24, zlp: 28 }));
 
   it('giá trị rỗng → mặc định của đúng nguồn đó', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'spl', '', '', ''],
-    ])).cutoffDays.spl).toBe(24));
+    expect(parseNote(fixedRange([hi('spl', '')])).cutoffDays.spl).toBe(24));
 
   it('không phải số nguyên → mặc định của đúng nguồn đó', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'zlp', 'hai mươi', '', ''],
-    ])).cutoffDays.zlp).toBe(28));
+    expect(parseNote(fixedRange([hi('zlp', 'hai mươi')])).cutoffDays.zlp).toBe(28));
 
   it('số lẻ → mặc định của đúng nguồn đó', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'cc', 7.5, '', ''],
-    ])).cutoffDays.cc).toBe(7));
+    expect(parseNote(fixedRange([hi('cc', 7.5)])).cutoffDays.cc).toBe(7));
 
   it('0 nằm ngoài khoảng 1–28 → mặc định của đúng nguồn đó', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'cc', 0, '', ''],
-    ])).cutoffDays.cc).toBe(7));
+    expect(parseNote(fixedRange([hi('cc', 0)])).cutoffDays.cc).toBe(7));
 
   it('29 nằm ngoài khoảng vì không phải tháng nào cũng có → mặc định của nguồn đó', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'spl', 29, '', ''],
-    ])).cutoffDays.spl).toBe(24));
+    expect(parseNote(fixedRange([hi('spl', 29)])).cutoffDays.spl).toBe(24));
 
   it('nguồn thiếu hẳn khỏi khối → dùng mặc định của nguồn đó', () =>
-    expect(parseNote(fixedRange([
-      ['', '', '', '', '', '', '', 'cc', 20, '', ''],
-    ])).cutoffDays).toEqual({ cc: 20, spl: 24, zlp: 28 }));
+    expect(parseNote(fixedRange([hi('cc', 20)])).cutoffDays)
+      .toEqual({ cc: 20, spl: 24, zlp: 28 }));
 
   it('khối trống hoàn toàn → cả ba nguồn dùng mặc định của chính nó', () =>
     expect(parseNote(fixedRange([])).cutoffDays).toEqual({ cc: 7, spl: 24, zlp: 28 }));
