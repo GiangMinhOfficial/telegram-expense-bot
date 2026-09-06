@@ -1,7 +1,8 @@
+import type { DeferredSource } from '../config';
 import { bumpOutbox, dropOutbox, dueOutbox } from '../db';
 import type { Env } from '../env';
 import { AuthExpiredError } from '../graph/auth';
-import { type DeferredSource, legacySource } from '../parse/message';
+import { legacySource } from '../parse/message';
 import { sendMessage } from '../telegram/api';
 import { performWrite, type ExactEntry } from './write';
 

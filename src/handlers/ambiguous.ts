@@ -1,6 +1,7 @@
+import type { DeferredSource } from '../config';
 import { putPending, takePending } from '../db';
 import type { Env } from '../env';
-import { type DeferredSource, legacySource, type ParsedEntry } from '../parse/message';
+import { legacySource, type ParsedEntry } from '../parse/message';
 import { answerCallback, sendMessage } from '../telegram/api';
 import { formatVND } from '../telegram/format';
 import { performWrite, type ExactEntry } from './write';

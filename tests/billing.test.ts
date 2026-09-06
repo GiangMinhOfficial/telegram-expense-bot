@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { paymentMonth } from '../src/billing';
-import type { DeferredSource } from '../src/parse/message';
+import type { DeferredSource } from '../src/config';
 
 const d = (m: number, day: number) => ({ y: 2026, m, d: day });
 const month = (m: number, day: number, source: DeferredSource | null, cutoff = 7) => {
@@ -26,6 +26,20 @@ describe('thẻ đi theo kỳ sao kê', () => {
 
   it('tháng 11 sang tháng 12 vẫn chạy', () =>
     expect(month(11, 20, 'cc')).toBe(12));
+});
+
+describe('spl và zlp dùng cùng công thức với cc, chỉ khác mốc chốt', () => {
+  it.each([1, 20, 24])('spl (mốc 24), ngày %i chưa/đúng mốc → tháng đó', (day) =>
+    expect(month(8, day, 'spl', 24)).toBe(8));
+
+  it.each([25, 31])('spl (mốc 24), ngày %i sau mốc → tháng sau', (day) =>
+    expect(month(8, day, 'spl', 24)).toBe(9));
+
+  it.each([1, 20, 28])('zlp (mốc 28), ngày %i chưa/đúng mốc → tháng đó', (day) =>
+    expect(month(8, day, 'zlp', 28)).toBe(8));
+
+  it('zlp (mốc 28), ngày 29 sau mốc → tháng sau', () =>
+    expect(month(8, 29, 'zlp', 28)).toBe(9));
 });
 
 describe('mốc chốt lấy từ tham số, không viết cứng', () => {

@@ -1,5 +1,5 @@
+import type { DeferredSource } from './config';
 import type { VNDate } from './parse/date';
-import type { DeferredSource } from './parse/message';
 
 export type BillingTarget =
   | { ok: true; month: number }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DEFERRED_SOURCES } from '../src/config';
 import {
-  carryOverRefusal, confirmation, formatVND, reauthCodeFailed, reauthDone, reauthPrompt,
+  carryOverRefusal, confirmation, formatVND, helpText, reauthCodeFailed, reauthDone, reauthPrompt,
 } from '../src/telegram/format';
 
 describe('formatVND', () => {
@@ -89,10 +90,61 @@ describe('confirmation với khoản thẻ', () => {
   });
 });
 
+describe('confirmation với spl và zlp', () => {
+  it('spl hiện đúng emoji 🛍️, không phải 💳', () => {
+    const s = confirmation(
+      { ...card, date: { y: 2026, m: 8, d: 3 }, source: 'spl', targetMonth: 8 },
+      CARD_TOTALS, false);
+    expect(s).toContain('🛍️ trả tháng 8');
+    expect(s).not.toContain('💳');
+  });
+
+  it('zlp hiện đúng emoji 🔵, không phải 💳', () => {
+    const s = confirmation(
+      { ...card, date: { y: 2026, m: 8, d: 3 }, source: 'zlp', targetMonth: 8 },
+      CARD_TOTALS, false);
+    expect(s).toContain('🔵 trả tháng 8');
+    expect(s).not.toContain('💳');
+  });
+
+  it('spl nhảy tháng nói rõ cả ngày tiêu lẫn tháng trả', () => {
+    const s = confirmation({ ...card, source: 'spl', targetMonth: 9 }, CARD_TOTALS, false);
+    expect(s).toContain('🛍️ tiêu 10/08 → trả tháng 9');
+  });
+
+  it('mô tả trong tin xác nhận không bao giờ mang tiền tố nguồn', () => {
+    const s = confirmation({ ...card, source: 'spl', targetMonth: 9 }, CARD_TOTALS, false);
+    expect(s).toContain('cơm trưa');
+    expect(s).not.toContain('[spl]');
+  });
+});
+
+describe('helpText — mục Nguồn trả sau', () => {
+  const note = { shortcodes: {}, cutoffDay: 7 };
+  const html = helpText(note);
+
+  it('liệt kê cả ba token', () => {
+    expect(html).toContain('cc');
+    expect(html).toContain('spl');
+    expect(html).toContain('zlp');
+  });
+
+  it('mỗi token kèm mốc chốt lấy từ cấu hình, không viết cứng ngoài chuỗi', () => {
+    for (const [token, s] of Object.entries(DEFERRED_SOURCES)) {
+      expect(html).toContain(`<code>${token}</code>`);
+      expect(html).toContain(`chốt ngày ${s.defaultCutoffDay}`);
+      expect(html).toContain(s.emoji);
+      expect(html).toContain(s.label);
+    }
+  });
+
+  it('mục có tiêu đề "Nguồn trả sau"', () => expect(html).toContain('Nguồn trả sau'));
+});
+
 describe('carryOverRefusal', () => {
   const e = {
     description: 'cơm trưa', date: { y: 2026, m: 12, d: 10 },
-    label: 'Ăn uống sinh hoạt',
+    label: 'Ăn uống sinh hoạt', source: null as null | 'cc' | 'spl' | 'zlp',
   };
   const err = 'Khoản này rơi vào kỳ trả tháng 1/2027 — file 2026 chưa có chỗ.';
 
@@ -111,6 +163,21 @@ describe('carryOverRefusal', () => {
     expect(s).toContain('3.000đ');
     expect(s).toContain('3.000.000đ');
   });
+
+  it('không có nguồn → không có emoji nguồn nào', () => {
+    const s = carryOverRefusal({ ...e, amount: { kind: 'exact', amount: 40_000 } }, err);
+    expect(s).not.toMatch(/💳|🛍️|🔵/);
+  });
+
+  it.each([['cc', '💳'], ['spl', '🛍️'], ['zlp', '🔵']] as const)(
+    'nguồn %s → in kèm emoji %s để biết viết tiền tố nào khi chép tay', (source, emoji) => {
+      const s = carryOverRefusal(
+        { ...e, source, amount: { kind: 'exact', amount: 40_000 } }, err);
+      expect(s).toContain(emoji);
+      // Mô tả vẫn là chữ người dùng gõ, không ghép tiền tố dạng [spl] — đó là
+      // việc riêng của buildRow.
+      expect(s).not.toContain(`[${source}]`);
+    });
 });
 
 describe('reauthPrompt', () => {

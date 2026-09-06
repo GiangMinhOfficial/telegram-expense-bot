@@ -1,7 +1,7 @@
+import { DEFERRED_SOURCES, type DeferredSource } from '../config';
 import type { NoteConfig } from '../note';
 import type { Amount } from '../parse/amount';
 import type { VNDate } from '../parse/date';
-import type { DeferredSource } from '../parse/message';
 import type { Totals } from '../graph/totals';
 
 export const formatVND = (n: number): string =>
@@ -33,10 +33,11 @@ export function confirmation(
   ];
 
   if (e.source) {
+    const emoji = DEFERRED_SOURCES[e.source].emoji;
     head.push(
       e.targetMonth === e.date.m
-        ? `💳 trả tháng ${e.targetMonth}`
-        : `💳 tiêu ${dm(e.date)} → trả tháng ${e.targetMonth}`,
+        ? `${emoji} trả tháng ${e.targetMonth}`
+        : `${emoji} tiêu ${dm(e.date)} → trả tháng ${e.targetMonth}`,
     );
   }
 
@@ -52,18 +53,29 @@ export function confirmation(
   return `${head.join('\n')}\n\n<pre>${esc(body)}</pre>`;
 }
 
-/** Khoản thẻ tháng 12 rơi sang kỳ trả năm sau — in lại đủ để chép tay. */
+/**
+ * Khoản trả sau tháng 12 rơi sang kỳ trả năm sau — in lại đủ để chép tay, cho
+ * cả ba nguồn.
+ *
+ * Kèm emoji nguồn (không phải chữ, giống dòng nguồn trong `confirmation`) để
+ * người chép tay biết viết tiền tố nào — mô tả ở đây vẫn là chữ người dùng gõ,
+ * không ghép tiền tố (đó là việc riêng của `buildRow`).
+ */
 export function carryOverRefusal(
-  e: { description: string; amount: Amount; date: VNDate; label: string },
+  e: {
+    description: string; amount: Amount; date: VNDate; label: string;
+    source: DeferredSource | null;
+  },
   error: string,
 ): string {
   const money = e.amount.kind === 'exact'
     ? formatVND(e.amount.amount)
     : `${formatVND(e.amount.low)} hoặc ${formatVND(e.amount.high)}`;
+  const sourceTag = e.source ? ` ${DEFERRED_SOURCES[e.source].emoji}` : '';
 
   return [
     `⚠️ ${esc(error)}`,
-    `${esc(e.description)} · ${money} · ${dm(e.date)} · ${esc(e.label)}`,
+    `${esc(e.description)}${sourceTag} · ${money} · ${dm(e.date)} · ${esc(e.label)}`,
     'Chép tay vào file sang năm nhé.',
   ].join('\n');
 }
@@ -84,9 +96,12 @@ export function helpText(note: NoteConfig): string {
     '<b>Ngày</b>',
     'bỏ trống = hôm nay · hqua · hkia · 5/8 · 8/8/2026',
     '',
-    '<b>Thẻ tín dụng</b>',
-    'Thêm <code>cc</code> khi quẹt thẻ: <code>/food ăn trưa 40k cc</code>',
-    `Chốt sao kê ngày ${note.cutoffDay} — quẹt sau ngày đó thì tính vào tháng sau`,
+    '<b>Nguồn trả sau</b>',
+    'Thêm một token, đặt đâu trong câu cũng được: <code>/food ăn trưa 40k spl</code>',
+    'Quẹt sau ngày chốt thì tính vào tháng sau:',
+    ...Object.entries(DEFERRED_SOURCES).map(
+      ([token, s]) => `<code>${token}</code> ${s.emoji} ${s.label} — chốt ngày ${s.defaultCutoffDay}`,
+    ),
     '',
     '<b>Lệnh khác</b>',
     '/undo /today /thang /reauth /help',

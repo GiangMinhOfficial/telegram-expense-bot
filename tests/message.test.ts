@@ -119,6 +119,67 @@ describe('cc chỉ dùng cho nhóm chi tiêu', () => {
     expect(err('/food cc 40k')).toMatch(/mô tả/i));
 });
 
+describe('đánh dấu spl và zlp', () => {
+  it('spl ở cuối', () => {
+    const e = ok('/food mua áo 250k spl');
+    expect(e.source).toBe('spl');
+    expect(e.description).toBe('mua áo');
+  });
+
+  it('zlp ở giữa', () => {
+    const e = ok('/food trả góp zlp 300k');
+    expect(e.source).toBe('zlp');
+    expect(e.description).toBe('trả góp');
+  });
+
+  it('SPL/ZLP viết hoa cũng nhận', () => {
+    expect(ok('/food mua áo 250k SPL').source).toBe('spl');
+    expect(ok('/food trả góp 300k ZLP').source).toBe('zlp');
+  });
+
+  it('gõ spl hai lần vẫn tính là một', () => {
+    const e = ok('/food spl mua áo 250k spl');
+    expect(e.source).toBe('spl');
+    expect(e.description).toBe('mua áo');
+  });
+
+  it.each(['food', 'eat_out', 'transport', 'force', 'other', 'other_expense'])(
+    '/%s nhận spl và zlp', (c) => {
+      expect(ok(`/${c} test 10k spl`).source).toBe('spl');
+      expect(ok(`/${c} test 10k zlp`).source).toBe('zlp');
+    });
+
+  it.each(['income', 'invest', 'saving'])(
+    '/%s từ chối spl và zlp', (c) => {
+      const err = (t: string) => {
+        const r = parse(t);
+        if (r.ok) throw new Error('kỳ vọng lỗi');
+        return r.error;
+      };
+      expect(err(`/${c} test 10k spl`)).toMatch(/spl/i);
+      expect(err(`/${c} test 10k zlp`)).toMatch(/zlp/i);
+    });
+
+  it('"ví" và "td" không phải token nguồn', () => {
+    expect(ok('/other nạp ví 100k').source).toBe(null);
+    expect(ok('/other nạp td 100k').source).toBe(null);
+  });
+});
+
+describe('hai token nguồn khác nhau trong một tin → báo lỗi', () => {
+  const err = (t: string) => {
+    const r = parse(t);
+    if (r.ok) throw new Error('kỳ vọng lỗi, nhận nguồn: ' + r.entry.source);
+    return r.error;
+  };
+
+  it('cc và spl cùng lúc → lỗi, không lấy token cuối', () =>
+    expect(err('/food ăn trưa 40k cc spl')).toMatch(/nguồn trả sau/i));
+
+  it('spl và zlp cùng lúc → lỗi', () =>
+    expect(err('/food ăn trưa 40k spl zlp')).toMatch(/nguồn trả sau/i));
+});
+
 describe('số tiền mơ hồ được chuyển tiếp nguyên trạng', () => {
   it('/food gửi xe 3000', () =>
     expect(ok('/food gửi xe 3000').amount).toEqual({ kind: 'ambiguous', low: 3_000, high: 3_000_000 }));
