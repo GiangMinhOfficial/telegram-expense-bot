@@ -1,6 +1,6 @@
 import { putPending, takePending } from '../db';
 import type { Env } from '../env';
-import type { ParsedEntry } from '../parse/message';
+import { type DeferredSource, legacySource, type ParsedEntry } from '../parse/message';
 import { answerCallback, sendMessage } from '../telegram/api';
 import { formatVND } from '../telegram/format';
 import { performWrite, type ExactEntry } from './write';
@@ -42,15 +42,14 @@ export async function resolveAmount(
     return;
   }
 
-  const p = JSON.parse(pending.payloadJson) as ParsedEntry & {
-    low: number; high: number; targetMonth?: number;
+  const p = JSON.parse(pending.payloadJson) as Omit<ParsedEntry, 'source'> & {
+    low: number; high: number; targetMonth: number;
+    source?: DeferredSource | null; isCard?: boolean;
   };
   const exact: ExactEntry = {
     category: p.category, description: p.description, date: p.date,
-    // Bản ghi chờ tạo trước khi có tính năng thẻ thì thiếu hai trường này —
-    // JSON.parse không kiểm kiểu nên phải tự chống undefined ở đây.
-    isCard: p.isCard ?? false,
-    targetMonth: p.targetMonth ?? p.date.m,
+    source: legacySource(p),
+    targetMonth: p.targetMonth,
     amount: which === 'hi' ? p.high : p.low,
   };
 

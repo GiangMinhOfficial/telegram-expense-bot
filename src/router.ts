@@ -55,7 +55,7 @@ export async function handleUpdate(
 
   const { entry } = parsed;
 
-  const target = paymentMonth(entry.date, entry.isCard, note.cutoffDay);
+  const target = paymentMonth(entry.date, entry.source, note.cutoffDay);
   if (!target.ok) {
     await sendMessage(
       env, chatId,

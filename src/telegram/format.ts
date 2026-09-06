@@ -1,6 +1,7 @@
 import type { NoteConfig } from '../note';
 import type { Amount } from '../parse/amount';
 import type { VNDate } from '../parse/date';
+import type { DeferredSource } from '../parse/message';
 import type { Totals } from '../graph/totals';
 
 export const formatVND = (n: number): string =>
@@ -22,7 +23,7 @@ export function alignedRows(rows: [string, string][]): string {
 export function confirmation(
   e: {
     description: string; amount: number; date: VNDate; label: string;
-    isCard: boolean; targetMonth: number;
+    source: DeferredSource | null; targetMonth: number;
   },
   t: Totals,
   isToday: boolean,
@@ -31,7 +32,7 @@ export function confirmation(
     `✅ ${esc(e.description)} · ${formatVND(e.amount)} · ${dm(e.date)} → ${esc(e.label)}`,
   ];
 
-  if (e.isCard) {
+  if (e.source) {
     head.push(
       e.targetMonth === e.date.m
         ? `💳 trả tháng ${e.targetMonth}`

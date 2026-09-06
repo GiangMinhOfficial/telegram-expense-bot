@@ -15,7 +15,7 @@ describe('trường hợp cơ bản', () => {
     expect(ok('/food ăn trưa 40k')).toEqual({
       category: 'food', description: 'ăn trưa',
       date: { y: 2026, m: 8, d: 8 }, amount: { kind: 'exact', amount: 40_000 },
-      isCard: false,
+      source: null,
     });
   });
 });
@@ -48,38 +48,38 @@ describe('bung mã viết tắt', () => {
 
 describe('đánh dấu quẹt thẻ', () => {
   it('không có cc → không phải khoản thẻ', () =>
-    expect(ok('/food ăn trưa 40k').isCard).toBe(false));
+    expect(ok('/food ăn trưa 40k').source).toBe(null));
 
   it('cc ở cuối', () => {
     const e = ok('/food ăn trưa 40k cc');
-    expect(e.isCard).toBe(true);
+    expect(e.source).toBe('cc');
     expect(e.description).toBe('ăn trưa');
   });
 
   it('cc ở giữa', () => {
     const e = ok('/food ăn trưa cc 40k');
-    expect(e.isCard).toBe(true);
+    expect(e.source).toBe('cc');
     expect(e.description).toBe('ăn trưa');
   });
 
   it('cc ngay sau lệnh', () => {
     const e = ok('/food cc ăn trưa 40k');
-    expect(e.isCard).toBe(true);
+    expect(e.source).toBe('cc');
     expect(e.description).toBe('ăn trưa');
   });
 
   it('CC viết hoa cũng nhận', () =>
-    expect(ok('/food ăn trưa 40k CC').isCard).toBe(true));
+    expect(ok('/food ăn trưa 40k CC').source).toBe('cc'));
 
   it('gõ hai lần vẫn tính là một', () => {
     const e = ok('/food cc ăn trưa 40k cc');
-    expect(e.isCard).toBe(true);
+    expect(e.source).toBe('cc');
     expect(e.description).toBe('ăn trưa');
   });
 
   it('cc đi cùng ngày lùi', () => {
     const e = ok('/food ăn trưa 40k hqua cc');
-    expect(e.isCard).toBe(true);
+    expect(e.source).toBe('cc');
     expect(e.date).toEqual({ y: 2026, m: 8, d: 7 });
     expect(e.description).toBe('ăn trưa');
   });
@@ -88,16 +88,16 @@ describe('đánh dấu quẹt thẻ', () => {
     // "nạp thẻ" là câu bình thường để ghi nạp thẻ điện thoại. Nếu "thẻ" là từ
     // khoá thì khoản này bị đẩy sang tháng sau mà không có dấu hiệu nào báo.
     const e = ok('/other nạp thẻ 100k');
-    expect(e.isCard).toBe(false);
+    expect(e.source).toBe(null);
     expect(e.description).toBe('nạp thẻ');
   });
 
   it('"the" cũng không phải từ khoá', () =>
-    expect(ok('/other mua the game 100k').isCard).toBe(false));
+    expect(ok('/other mua the game 100k').source).toBe(null));
 
   it('cc dính liền chữ khác thì không phải từ khoá', () => {
     const e = ok('/other ccorp 40k');
-    expect(e.isCard).toBe(false);
+    expect(e.source).toBe(null);
     expect(e.description).toBe('ccorp');
   });
 });
@@ -110,7 +110,7 @@ describe('cc chỉ dùng cho nhóm chi tiêu', () => {
   };
 
   it.each(['food', 'eat_out', 'transport', 'force', 'other', 'other_expense'])(
-    '/%s nhận cc', (c) => expect(ok(`/${c} test 10k cc`).isCard).toBe(true));
+    '/%s nhận cc', (c) => expect(ok(`/${c} test 10k cc`).source).toBe('cc'));
 
   it.each(['income', 'invest', 'saving'])(
     '/%s từ chối cc', (c) => expect(err(`/${c} test 10k cc`)).toMatch(/cc/i));

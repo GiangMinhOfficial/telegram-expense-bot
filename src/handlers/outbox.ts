@@ -1,6 +1,7 @@
 import { bumpOutbox, dropOutbox, dueOutbox } from '../db';
 import type { Env } from '../env';
 import { AuthExpiredError } from '../graph/auth';
+import { type DeferredSource, legacySource } from '../parse/message';
 import { sendMessage } from '../telegram/api';
 import { performWrite, type ExactEntry } from './write';
 
@@ -11,15 +12,10 @@ export async function drainOutbox(env: Env): Promise<void> {
   const items = await dueOutbox(env.DB, 10);
   for (const it of items) {
     try {
-      const raw = JSON.parse(it.payloadJson) as ExactEntry & {
-        isCard?: boolean; targetMonth?: number;
+      const { isCard, ...raw } = JSON.parse(it.payloadJson) as Omit<ExactEntry, 'source'> & {
+        source?: DeferredSource | null; isCard?: boolean;
       };
-      // Khoản vào hàng đợi trước khi có tính năng thẻ thì thiếu hai trường này.
-      const entry: ExactEntry = {
-        ...raw,
-        isCard: raw.isCard ?? false,
-        targetMonth: raw.targetMonth ?? raw.date.m,
-      };
+      const entry: ExactEntry = { ...raw, source: legacySource({ source: raw.source, isCard }) };
       await performWrite(env, it.chatId, entry);
       await dropOutbox(env.DB, it.id);
     } catch (err) {

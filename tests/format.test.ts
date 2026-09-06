@@ -12,7 +12,7 @@ describe('confirmation', () => {
   const entry = {
     description: 'cơm trưa', amount: 40_000,
     date: { y: 2026, m: 8, d: 8 }, label: 'Ăn uống sinh hoạt',
-    isCard: false, targetMonth: 8,
+    source: null, targetMonth: 8,
   };
   const totals = { categoryMonth: 890_000, today: 75_000, monthSpend: 3_240_000 };
   const html = confirmation(entry, totals, true);
@@ -50,41 +50,41 @@ const card = {
 
 describe('confirmation với khoản thẻ', () => {
   it('tiền mặt không có dòng thẻ', () => {
-    const s = confirmation({ ...card, isCard: false, targetMonth: 8 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: null, targetMonth: 8 }, CARD_TOTALS, false);
     expect(s).not.toContain('💳');
   });
 
   it('thẻ không nhảy tháng', () => {
     const s = confirmation(
-      { ...card, date: { y: 2026, m: 8, d: 3 }, isCard: true, targetMonth: 8 },
+      { ...card, date: { y: 2026, m: 8, d: 3 }, source: 'cc', targetMonth: 8 },
       CARD_TOTALS, false);
     expect(s).toContain('💳 trả tháng 8');
   });
 
   it('thẻ nhảy tháng nói rõ cả ngày tiêu lẫn tháng trả', () => {
-    const s = confirmation({ ...card, isCard: true, targetMonth: 9 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: 'cc', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('💳 tiêu 10/08 → trả tháng 9');
   });
 
   it('nhãn nhóm mang THÁNG ĐÍCH, không mang tháng phát sinh', () => {
-    const s = confirmation({ ...card, isCard: true, targetMonth: 9 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: 'cc', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('Ăn uống sinh hoạt (T9)');
     expect(s).not.toContain('Ăn uống sinh hoạt (T8)');
   });
 
   it('nhãn tổng chi cũng mang THÁNG ĐÍCH', () => {
-    const s = confirmation({ ...card, isCard: true, targetMonth: 9 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: 'cc', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('Tổng chi T9');
     expect(s).not.toContain('Tổng chi T8');
   });
 
   it('ghi hôm nay thì dòng giữa ghi "Hôm nay"', () => {
-    const s = confirmation({ ...card, isCard: false, targetMonth: 8 }, CARD_TOTALS, true);
+    const s = confirmation({ ...card, source: null, targetMonth: 8 }, CARD_TOTALS, true);
     expect(s).toContain('Hôm nay');
   });
 
   it('ghi lùi ngày thì dòng giữa mang ngày đó', () => {
-    const s = confirmation({ ...card, isCard: false, targetMonth: 8 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: null, targetMonth: 8 }, CARD_TOTALS, false);
     expect(s).toContain('Ngày 10/08');
   });
 });

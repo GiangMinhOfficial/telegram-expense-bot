@@ -14,13 +14,20 @@ export type ExactEntry = Omit<ParsedEntry, 'amount'> & {
   targetMonth: number;
 };
 
+/** Ba ô sẽ ghi vào Excel. Hàm thuần — không cần Env hay Graph để gọi. */
+export function buildRow(e: ExactEntry): [string, number, number] {
+  return [e.description, toExcelSerial(e.date), e.amount];
+}
+
 export async function performWrite(
   env: Env, chatId: number, e: ExactEntry,
 ): Promise<void> {
   const table = tableName(e.category, e.targetMonth);
   const sheet = sheetName(e.targetMonth);
-  const serial = toExcelSerial(e.date);
-  const values: [string, number, number] = [e.description, serial, e.amount];
+  // Bản ghi vào Excel và bản lưu để /undo đối chiếu PHẢI là cùng một mảng — dựng
+  // hai lần thì một chỗ đổi mà quên chỗ kia sẽ khiến /undo xoá nhầm dòng.
+  const values = buildRow(e);
+  const [, serial] = values;
 
   const index = await appendRow(env, table, values);
 

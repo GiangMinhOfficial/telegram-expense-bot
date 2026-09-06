@@ -2,13 +2,28 @@ import { type CategoryKey, WORKBOOK_YEAR, isCategory } from '../config';
 import { type Amount, parseAmount } from './amount';
 import { type VNDate, parseDateToken, vnToday } from './date';
 
+/**
+ * Nguồn trả sau — quyết định tháng đích, xem src/billing.ts.
+ * `null` nghĩa là tiền rời tài khoản ngay (xem CONTEXT.md, mục "Nguồn trả sau").
+ */
+export type DeferredSource = 'cc';
+
 export interface ParsedEntry {
   category: CategoryKey;
   description: string;
   date: VNDate;
   amount: Amount;
-  /** Quẹt thẻ tín dụng — quyết định tháng đích, xem src/billing.ts */
-  isCard: boolean;
+  source: DeferredSource | null;
+}
+
+/**
+ * Đọc `source` từ một bản ghi JSON có thể thuộc kiểu cũ — trước ticket 01
+ * (prefactor) mang `isCard: boolean` thay vì `source`. Dùng ở hàng đợi ghi lại
+ * và khoản mơ hồ đang chờ. Xoá được sau khi deploy xong và hàng đợi ghi lại đã rỗng.
+ */
+export function legacySource(p: { source?: DeferredSource | null; isCard?: boolean }):
+DeferredSource | null {
+  return p.source ?? (p.isCard ? 'cc' : null);
 }
 export type ParseOutcome =
   | { ok: true; entry: ParsedEntry }
@@ -58,13 +73,13 @@ export function parseMessage(
 
   // Bóc token cc ra trước khi quét số tiền, ngày, mô tả.
   const tokens: string[] = [];
-  let isCard = false;
+  let source: DeferredSource | null = null;
   for (const t of raws) {
-    if (t.toLowerCase() === CARD_TOKEN) { isCard = true; continue; }
+    if (t.toLowerCase() === CARD_TOKEN) { source = 'cc'; continue; }
     tokens.push(t);
   }
 
-  if (isCard && !CARD_ALLOWED.has(cmd)) {
+  if (source && !CARD_ALLOWED.has(cmd)) {
     return {
       ok: false,
       error: `cc chỉ dùng cho các nhóm chi tiêu, không dùng với /${cmd}.`,
@@ -110,5 +125,5 @@ export function parseMessage(
     return { ok: false, error: 'Thiếu mô tả. Ví dụ: /food ăn trưa 40k' };
   }
 
-  return { ok: true, entry: { category: cmd, description, date, amount, isCard } };
+  return { ok: true, entry: { category: cmd, description, date, amount, source } };
 }
