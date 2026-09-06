@@ -1,5 +1,5 @@
 import { paymentMonth } from './billing';
-import { CATEGORIES, cutoffDayFor } from './config';
+import { CATEGORIES } from './config';
 import { enqueue } from './db';
 import type { Env } from './env';
 import { AuthExpiredError } from './graph/auth';
@@ -55,7 +55,8 @@ export async function handleUpdate(
 
   const { entry } = parsed;
 
-  const target = paymentMonth(entry.date, entry.source, cutoffDayFor(entry.source));
+  const cutoffDay = entry.source ? note.cutoffDays[entry.source] : 0;
+  const target = paymentMonth(entry.date, entry.source, cutoffDay);
   if (!target.ok) {
     await sendMessage(
       env, chatId,

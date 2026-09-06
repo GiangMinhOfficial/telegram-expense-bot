@@ -55,10 +55,14 @@ const send = async (text) => {
 };
 
 // ── Boi canh ────────────────────────────────────────────────────────────────
-const cutoffRaw = (await g(`/worksheets('Note')/range(address='B1')?$select=values`))
-  .values?.[0]?.[0];
+// Khoi H (token) - I (moc chot) cua sheet Note, quet theo cot — dung form voi
+// parseNote() trong src/note.ts. 7 la mac dinh cua rieng 'cc' (DEFERRED_SOURCES
+// trong src/config.ts), khong con la mac dinh chung cho ca sheet nua.
+const noteRows = (await g(`/worksheets('Note')/range(address='H1:I50')?$select=values`))
+  .values ?? [];
+const cutoffRaw = noteRows.find((r) => String(r[0] ?? '').trim().toLowerCase() === 'cc')?.[1];
 const cutoff = Number.isInteger(cutoffRaw) && cutoffRaw >= 1 && cutoffRaw <= 28 ? cutoffRaw : 7;
-console.log(`Moc chot doc tu Note!B1: ${JSON.stringify(cutoffRaw)} -> dung ${cutoff}`);
+console.log(`Moc chot cc doc tu khoi H-I: ${JSON.stringify(cutoffRaw)} -> dung ${cutoff}`);
 
 const now = new Date(Date.now() + 7 * 3600 * 1000); // gio Viet Nam
 const year = now.getUTCFullYear();

@@ -120,7 +120,7 @@ describe('confirmation với spl và zlp', () => {
 });
 
 describe('helpText — mục Nguồn trả sau', () => {
-  const note = { shortcodes: {}, cutoffDay: 7 };
+  const note = { shortcodes: {}, cutoffDays: { cc: 7, spl: 24, zlp: 28 } };
   const html = helpText(note);
 
   it('liệt kê cả ba token', () => {
@@ -139,6 +139,12 @@ describe('helpText — mục Nguồn trả sau', () => {
   });
 
   it('mục có tiêu đề "Nguồn trả sau"', () => expect(html).toContain('Nguồn trả sau'));
+
+  it('mốc chốt lấy từ note.cutoffDays, không phải mặc định trong code', () => {
+    const overridden = helpText({ shortcodes: {}, cutoffDays: { cc: 20, spl: 24, zlp: 28 } });
+    expect(overridden).toContain('chốt ngày 20');
+    expect(overridden).not.toContain('chốt ngày 7');
+  });
 });
 
 describe('carryOverRefusal', () => {

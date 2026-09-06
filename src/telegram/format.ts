@@ -100,7 +100,7 @@ export function helpText(note: NoteConfig): string {
     'Thêm một token, đặt đâu trong câu cũng được: <code>/food ăn trưa 40k spl</code>',
     'Quẹt sau ngày chốt thì tính vào tháng sau:',
     ...Object.entries(DEFERRED_SOURCES).map(
-      ([token, s]) => `<code>${token}</code> ${s.emoji} ${s.label} — chốt ngày ${s.defaultCutoffDay}`,
+      ([token, s]) => `<code>${token}</code> ${s.emoji} ${s.label} — chốt ngày ${note.cutoffDays[token as DeferredSource]}`,
     ),
     '',
     '<b>Lệnh khác</b>',
