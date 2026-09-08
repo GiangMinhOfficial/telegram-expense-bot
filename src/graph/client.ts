@@ -1,4 +1,4 @@
-import { getToken, saveToken } from '../db';
+import { clearAccessToken } from '../db';
 import type { Env } from '../env';
 import { getAccessToken } from './auth';
 
@@ -25,8 +25,7 @@ export async function graphFetch(
 
   // 401 → access token chết sớm hơn dự kiến. Xoá cache, lấy lại, thử đúng một lần.
   if (res.status === 401) {
-    const t = await getToken(env.DB);
-    if (t) await saveToken(env.DB, { ...t, accessToken: null, expiresAt: 0 });
+    await clearAccessToken(env.DB);
     res = await call(await getAccessToken(env));
   }
 

@@ -1,34 +1,40 @@
-import { getToken, saveToken } from '../db';
+import { getToken, saveRotatedToken } from '../db';
 import type { Env } from '../env';
 
-const TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
-const SCOPE = 'Files.ReadWrite offline_access';
+export const TOKEN_URL = 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token';
+export const SCOPE = 'Files.ReadWrite offline_access';
 /** Làm mới sớm 5 phút để không dùng token sắp hết hạn giữa chừng. */
 const SKEW_MS = 5 * 60 * 1000;
 
 export class AuthExpiredError extends Error {}
 
-export async function getAccessToken(env: Env): Promise<string> {
-  let stored = await getToken(env.DB);
+export type RefreshOutcome =
+  /** `refreshToken: null` = Microsoft không xoay chuỗi, token vừa đem đi đổi vẫn dùng tiếp được. */
+  | { kind: 'ok'; refreshToken: string | null; accessToken: string; expiresAt: number }
+  | { kind: 'failed'; error: string };
 
-  // Lần chạy đầu: nạp refresh token khởi tạo từ secret vào D1.
-  if (!stored) {
-    if (!env.MS_REFRESH_TOKEN) throw new AuthExpiredError('Chưa có refresh token trong D1');
-    stored = { refreshToken: env.MS_REFRESH_TOKEN, accessToken: null, expiresAt: 0 };
-  }
-
-  if (stored.accessToken && stored.expiresAt - SKEW_MS > Date.now()) {
-    return stored.accessToken;
-  }
-
+/**
+ * Đổi một refresh token lấy access token. Đây cũng là phép thử duy nhất cho
+ * câu hỏi "chuỗi này còn sống không" — xin được token không trả lời được câu đó.
+ *
+ * Đổi được thì chuỗi đã tiến lên một bước: token truyền vào coi như đã chết,
+ * người gọi phải cất `refreshToken` trong kết quả chứ không phải token cũ.
+ *
+ * KHÔNG được gửi client_secret. App đăng ký là public client thật từ
+ * 2026-09-02 (redirect URI chuyển sang platform "Mobile and desktop
+ * applications", client secret đã xoá khỏi Azure) — endpoint trả AADSTS90023
+ * "client secret not expected for a public client" nếu gửi kèm.
+ */
+export async function exchangeRefreshToken(
+  env: Env, refreshToken: string,
+): Promise<RefreshOutcome> {
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: env.MS_CLIENT_ID,
-      client_secret: env.MS_CLIENT_SECRET,
       grant_type: 'refresh_token',
-      refresh_token: stored.refreshToken,
+      refresh_token: refreshToken,
       scope: SCOPE,
     }),
   });
@@ -38,16 +44,85 @@ export async function getAccessToken(env: Env): Promise<string> {
   }>();
 
   if (!res.ok || !body.access_token) {
-    throw new AuthExpiredError(`Làm mới token thất bại: ${body.error ?? res.status}`);
+    // Nguyên văn error_description vì mã AADSTS trong đó mới phân biệt được
+    // "thiếu quyền" với "chuỗi không dùng được" — hai lỗi sửa theo hai cách khác nhau.
+    return {
+      kind: 'failed',
+      error: body.error_description ?? body.error ?? `HTTP ${res.status}`,
+    };
+  }
+  return {
+    kind: 'ok',
+    refreshToken: body.refresh_token ?? null,
+    accessToken: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  };
+}
+
+/**
+ * Đổi authorization code (từ redirect `/oauth/callback`) lấy cặp token đầu
+ * tiên của chuỗi. Cùng endpoint và cùng luật "không secret" với
+ * `exchangeRefreshToken`, chỉ khác grant: kèm `code_verifier` để Microsoft đối
+ * chiếu với `code_challenge` đã gửi lúc `/authorize`, thay cho việc xác thực
+ * bằng client_secret của confidential client.
+ */
+export async function exchangeAuthCode(
+  env: Env, code: string, codeVerifier: string, redirectUri: string,
+): Promise<RefreshOutcome> {
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: env.MS_CLIENT_ID,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: codeVerifier,
+      scope: SCOPE,
+    }),
+  });
+  const body = await res.json<{
+    access_token?: string; refresh_token?: string; expires_in?: number;
+    error?: string; error_description?: string;
+  }>();
+
+  if (!res.ok || !body.access_token) {
+    return {
+      kind: 'failed',
+      error: body.error_description ?? body.error ?? `HTTP ${res.status}`,
+    };
+  }
+  return {
+    kind: 'ok',
+    refreshToken: body.refresh_token ?? null,
+    accessToken: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  };
+}
+
+export async function getAccessToken(env: Env): Promise<string> {
+  const stored = await getToken(env.DB);
+  // Kho trống thì chỉ còn một đường dựng lại: /reauth. Không còn secret nạp mồi nữa.
+  if (!stored) throw new AuthExpiredError('Kho token trống — gửi /reauth để cấp quyền');
+
+  if (stored.accessToken && stored.expiresAt - SKEW_MS > Date.now()) {
+    return stored.accessToken;
+  }
+
+  const outcome = await exchangeRefreshToken(env, stored.refreshToken);
+  if (outcome.kind === 'failed') {
+    throw new AuthExpiredError(`Làm mới token thất bại: ${outcome.error}`);
   }
 
   // LƯU NGAY. Từ thời điểm này refresh token cũ đã bị vô hiệu ở phía Microsoft —
   // xác nhận bằng thực nghiệm ở BƯỚC 0, xem docs/SPIKE-RESULT.md.
-  await saveToken(env.DB, {
-    refreshToken: body.refresh_token ?? stored.refreshToken,
-    accessToken: body.access_token,
-    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  // Thua cuộc đua thì bỏ token của mình đi, KHÔNG ghi đè: xem saveRotatedToken.
+  // Access token vừa lấy vẫn sống hết giờ nên lượt chạy này cứ đi tiếp.
+  await saveRotatedToken(env.DB, stored.refreshToken, {
+    refreshToken: outcome.refreshToken ?? stored.refreshToken,
+    accessToken: outcome.accessToken,
+    expiresAt: outcome.expiresAt,
   });
 
-  return body.access_token;
+  return outcome.accessToken;
 }

@@ -2,12 +2,13 @@
 //
 // Đây là bản dump chẩn đoán — KHÔNG phải bản sao luật nghiệp vụ của parseNote()
 // (src/note.ts). Script chỉ báo cáo sheet đang chứa gì; người chạy tự đối chiếu
-// kết quả với DEFAULT_CUTOFF_DAY và khoảng 1–28 trong parseNote() nếu cần. Bản
-// trước từng mô phỏng lại cả colOffset() lẫn luật chốt hạn — hai bản luật độc
-// lập, hễ parseNote() đổi mà quên sửa ở đây thì script âm thầm báo sai cho
-// người đang dùng nó để chẩn đoán sự cố. .mjs chạy bằng node thường không import
-// được src/*.ts nên không thể gọi thẳng parseNote() — nhưng điều đó chỉ biện
-// minh cho việc gọi Graph trực tiếp, không biện minh cho việc chép lại luật.
+// kết quả với khoảng 1–28 và mặc định từng nguồn (DEFERRED_SOURCES trong
+// src/config.ts) nếu cần. Bản trước từng mô phỏng lại cả colOffset() lẫn luật
+// chốt hạn — hai bản luật độc lập, hễ parseNote() đổi mà quên sửa ở đây thì
+// script âm thầm báo sai cho người đang dùng nó để chẩn đoán sự cố. .mjs chạy
+// bằng node thường không import được src/*.ts nên không thể gọi thẳng
+// parseNote() — nhưng điều đó chỉ biện minh cho việc gọi Graph trực tiếp,
+// không biện minh cho việc chép lại luật.
 import { loadEnv, getAccessToken } from './lib/dev-vars.mjs';
 
 const env = loadEnv();
@@ -34,9 +35,9 @@ values.forEach((row, i) => {
 });
 
 // Vùng đọc luôn cố định ở A1 (xem url ở trên) nên chỉ số mảng trùng thẳng với
-// chỉ số cột — cột B là [1], E là [4], F là [5], không cần bù trừ offset như
-// parseNote() phải làm cho một vùng bất kỳ. Cột E/F là bố cục sheet thật, việc
-// liệt kê thẳng ở đây là hợp lý cho một bản dump chẩn đoán.
+// chỉ số cột — cột E là [4], F là [5], H là [7], I là [8], không cần bù trừ
+// offset như parseNote() phải làm cho một vùng bất kỳ. Bố cục cột này là bố
+// cục sheet thật, việc liệt kê thẳng ở đây là hợp lý cho một bản dump chẩn đoán.
 const codes = {};
 for (const row of values) {
   const c = row[4];
@@ -46,7 +47,23 @@ for (const row of values) {
   }
 }
 
+// Ba token khop voi DEFERRED_SOURCES trong src/config.ts. Liet ke thang ra day
+// (khong import duoc tu .mjs) de bao du ca ba nguon, ke ca nguon nao thieu
+// khoi khoi H-I. Chi la ten token — khong phai con so mac dinh — nen khong
+// pham vao dieu header o tren canh bao ve viec chep lai luat nghiep vu.
+const SOURCE_TOKENS = ['cc', 'spl', 'zlp'];
+const cutoffs = {};
+for (const row of values) {
+  const src = row[7];
+  const key = typeof src === 'string' ? src.trim().toLowerCase() : '';
+  if (SOURCE_TOKENS.includes(key)) cutoffs[key] = row[8];
+}
+
 console.log('');
 console.log('ma viet tat :', JSON.stringify(codes));
-console.log('o B1 (moc chot):', JSON.stringify(values[0]?.[1]), `(${typeof values[0]?.[1]})`);
+console.log('moc chot (khoi H-I), ca ba nguon:');
+for (const t of SOURCE_TOKENS) {
+  const has = Object.prototype.hasOwnProperty.call(cutoffs, t);
+  console.log(`  ${t}: ${has ? JSON.stringify(cutoffs[t]) : '(khong co trong khoi -> dung mac dinh cua code)'}`);
+}
 console.log(Object.keys(codes).length > 0 ? '=> OK' : '=> RONG — kiem tra lai cot E/F cua sheet Note');

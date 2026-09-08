@@ -1,4 +1,6 @@
-import { type CategoryKey, WORKBOOK_YEAR, isCategory } from '../config';
+import {
+  type CategoryKey, type DeferredSource, WORKBOOK_YEAR, isCategory, isDeferredSource,
+} from '../config';
 import { type Amount, parseAmount } from './amount';
 import { type VNDate, parseDateToken, vnToday } from './date';
 
@@ -7,8 +9,17 @@ export interface ParsedEntry {
   description: string;
   date: VNDate;
   amount: Amount;
-  /** Quẹt thẻ tín dụng — quyết định tháng đích, xem src/billing.ts */
-  isCard: boolean;
+  source: DeferredSource | null;
+}
+
+/**
+ * Đọc `source` từ một bản ghi JSON có thể thuộc kiểu cũ — trước ticket 01
+ * (prefactor) mang `isCard: boolean` thay vì `source`. Dùng ở hàng đợi ghi lại
+ * và khoản mơ hồ đang chờ. Xoá được sau khi deploy xong và hàng đợi ghi lại đã rỗng.
+ */
+export function legacySource(p: { source?: DeferredSource | null; isCard?: boolean }):
+DeferredSource | null {
+  return p.source ?? (p.isCard ? 'cc' : null);
 }
 export type ParseOutcome =
   | { ok: true; entry: ParsedEntry }
@@ -21,17 +32,8 @@ const MULTIWORD: [RegExp, string][] = [
   [/\bh(ô|o)m\s+kia\b/giu, 'hkia'],
 ];
 
-/**
- * Chỉ nhận đúng `cc`, KHÔNG nhận `thẻ`/`the`/`td`.
- *
- * "/other nạp thẻ 100k" là câu hoàn toàn bình thường để ghi nạp thẻ điện thoại.
- * Nếu "thẻ" là từ khoá thì khoản đó bị đẩy sang tháng sau mà không có dấu hiệu
- * nào báo. `cc` không đụng từ tiếng Việt nào.
- */
-const CARD_TOKEN = 'cc';
-
-/** Thu nhập, đầu tư, tiết kiệm không phải khoản quẹt thẻ. */
-const CARD_ALLOWED = new Set<CategoryKey>([
+/** Thu nhập, đầu tư, tiết kiệm không đến từ nguồn trả sau. */
+const DEFERRED_ALLOWED = new Set<CategoryKey>([
   'food', 'eat_out', 'transport', 'force', 'other', 'other_expense',
 ]);
 
@@ -56,18 +58,31 @@ export function parseMessage(
 
   const raws = parts.slice(1).filter(Boolean);
 
-  // Bóc token cc ra trước khi quét số tiền, ngày, mô tả.
+  // Bóc token nguồn (đúng cc/spl/zlp) ra trước khi quét số tiền, ngày, mô tả.
+  // KHÔNG nhận thẻ/the/td/ví: "/other nạp thẻ 100k" phải là câu bình thường.
   const tokens: string[] = [];
-  let isCard = false;
+  const sources = new Set<DeferredSource>();
   for (const t of raws) {
-    if (t.toLowerCase() === CARD_TOKEN) { isCard = true; continue; }
+    const lower = t.toLowerCase();
+    if (isDeferredSource(lower)) { sources.add(lower); continue; }
     tokens.push(t);
   }
 
-  if (isCard && !CARD_ALLOWED.has(cmd)) {
+  // Hai token KHÁC NHAU (vd. "cc spl") là mơ hồ — không đoán, gõ lại lần nữa
+  // vẫn tính là một nguồn duy nhất.
+  if (sources.size > 1) {
     return {
       ok: false,
-      error: `cc chỉ dùng cho các nhóm chi tiêu, không dùng với /${cmd}.`,
+      error: `Chỉ được dùng một nguồn trả sau trong một tin, không được gõ cả `
+        + `${[...sources].join(' lẫn ')}.`,
+    };
+  }
+  const source = sources.size === 1 ? [...sources][0]! : null;
+
+  if (source && !DEFERRED_ALLOWED.has(cmd)) {
+    return {
+      ok: false,
+      error: `${source} chỉ dùng cho các nhóm chi tiêu, không dùng với /${cmd}.`,
     };
   }
 
@@ -110,5 +125,5 @@ export function parseMessage(
     return { ok: false, error: 'Thiếu mô tả. Ví dụ: /food ăn trưa 40k' };
   }
 
-  return { ok: true, entry: { category: cmd, description, date, amount, isCard } };
+  return { ok: true, entry: { category: cmd, description, date, amount, source } };
 }

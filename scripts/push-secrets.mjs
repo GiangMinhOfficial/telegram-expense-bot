@@ -29,8 +29,6 @@ if (target === 'test' && driveItemId === env.DRIVE_ITEM_ID) {
 
 const secrets = {
   MS_CLIENT_ID: env.MS_CLIENT_ID,
-  MS_CLIENT_SECRET: env.MS_CLIENT_SECRET,
-  MS_REFRESH_TOKEN: env.MS_REFRESH_TOKEN,
   DRIVE_ITEM_ID: driveItemId,
   TELEGRAM_BOT_TOKEN: env.TELEGRAM_BOT_TOKEN,
   TELEGRAM_SECRET: env.TELEGRAM_SECRET,
@@ -44,7 +42,7 @@ if (missing.length) {
 }
 
 console.log(`Muc tieu: ${target.toUpperCase()}  (DRIVE_ITEM_ID = ...${driveItemId.slice(-12)})`);
-console.log('Nap 7 secret:', Object.keys(secrets).join(', '));
+console.log(`Nap ${Object.keys(secrets).length} secret:`, Object.keys(secrets).join(', '));
 
 // Ghi ra file tam ngoai repo, xoa ngay sau khi nap.
 const dir = mkdtempSync(join(tmpdir(), 'wsec-'));

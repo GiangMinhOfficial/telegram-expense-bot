@@ -38,7 +38,8 @@ Vị trí của ngày và mô tả linh hoạt — bot quét token, không đọ
 
 ### Lệnh khác
 
-`/undo` hoàn tác khoản gần nhất · `/today` chi tiêu hôm nay · `/thang` tổng tháng này · `/help`
+`/undo` hoàn tác khoản gần nhất · `/today` chi tiêu hôm nay · `/thang` tổng tháng này
+· `/reauth` cấp quyền lại OneDrive · `/help`
 
 ### Số tiền
 
@@ -64,34 +65,40 @@ Bỏ trống = hôm nay · `hqua` · `hkia` · `5/8` (ngày/tháng) · `8/8/2026
 Đọc trực tiếp từ sheet `Note` (cột E = mã, cột F = tên đầy đủ). Thêm mã mới bằng cách
 gõ thêm một dòng trong Excel — **không cần sửa code, không cần deploy lại**.
 
-### Quẹt thẻ tín dụng
+### Nguồn trả sau
 
-Thêm `cc` vào tin nhắn, ở bất kỳ vị trí nào:
+Thêm một token vào tin nhắn, ở bất kỳ vị trí nào:
 
 ```
 /food ăn trưa 40k cc
 ```
 
-Khoản quẹt thẻ được ghi vào tháng **tiền rời tài khoản**, không phải tháng tiêu. Kỳ sao
-kê đóng vào hết ngày ghi ở ô `Note!B1` (mặc định 7), nên khoản quẹt từ ngày 8 trở đi
-rơi sang tháng sau. Từ ngày 1 đến ngày 7 thì thẻ hay tiền mặt đều cùng một tháng, không
-cần nghĩ.
+| Token | Nguồn | Mốc chốt mặc định |
+|---|---|---|
+| `cc` | Thẻ tín dụng | 7 |
+| `spl` | SPayLater | 24 |
+| `zlp` | Ví trả sau ZaloPay | 28 |
 
-Cột `Ngày` vẫn giữ ngày tiêu thật. Thấy `10-Aug` nằm trong sheet `Tháng 9` nghĩa là
-khoản thẻ chuyển sang — và vì tiền mặt luôn rơi đúng tháng của nó, **mọi dòng mang ngày
-của tháng trước chính là dòng thẻ**. Muốn biết tháng 9 có bao nhiêu là nợ thẻ kỳ trước
-thì một công thức trong Excel là ra, bot không cần đánh dấu gì thêm.
+Khoản trả bằng một trong ba nguồn này được ghi vào tháng **tiền rời tài khoản**, không
+phải tháng tiêu. Kỳ sao kê của mỗi nguồn đóng vào hết ngày chốt riêng của nó, nên khoản
+tiêu sau ngày đó rơi sang tháng sau. Trước và đúng ngày chốt thì thẻ hay tiền mặt đều
+cùng một tháng, không cần nghĩ.
 
-Đổi mốc chốt: sửa ô `Note!B1`, không cần deploy lại. Chỉ nhận số nguyên 1–28; ngoài
-khoảng đó bot quay về 7.
+Cột `Ngày` vẫn giữ ngày tiêu thật. Thấy một ngày của tháng trước nằm trong sheet tháng
+sau nghĩa là khoản đó trả sau — nhưng với ba nguồn cùng lúc, không phải khoản nào cũng
+là thẻ tín dụng; xem ô mô tả để biết đúng nguồn (`[cc]` / `[spl]` / `[zlp]`).
 
-`cc` chỉ dùng cho 6 nhóm chi tiêu. Với `/income`, `/invest`, `/saving` thì bot từ chối.
+Đổi mốc chốt của bất kỳ nguồn nào: sửa cột `I` ở khối `H`–`I` của sheet `Note` (cột `H`
+là token, cột `I` là ngày chốt), không cần deploy lại. Chỉ nhận số nguyên 1–28; ngoài
+khoảng đó hoặc nguồn thiếu khỏi khối thì bot quay về mốc mặc định của đúng nguồn đó.
 
-Chỉ nhận đúng chữ `cc`, **không nhận `thẻ`** — vì `/other nạp thẻ 100k` là câu hoàn toàn
-bình thường để ghi nạp thẻ điện thoại.
+Ba token chỉ dùng cho 6 nhóm chi tiêu. Với `/income`, `/invest`, `/saving` thì bot từ chối.
 
-Khoản thẻ quẹt sau mốc chốt trong tháng 12 sẽ trả vào tháng 1 năm sau, mà file này chỉ
-có 12 tháng. Bot từ chối và in lại khoản đó để bạn chép tay sang file năm mới.
+Chỉ nhận đúng ba chữ `cc` / `spl` / `zlp`, **không nhận `thẻ`, `ví`, `td`** — vì
+`/other nạp thẻ 100k` là câu hoàn toàn bình thường để ghi nạp thẻ điện thoại.
+
+Khoản trả sau tiêu sau mốc chốt trong tháng 12 sẽ trả vào tháng 1 năm sau, mà file này
+chỉ có 12 tháng. Bot từ chối và in lại khoản đó để bạn chép tay sang file năm mới.
 
 ---
 
@@ -120,11 +127,15 @@ thì ô hiện số serial thô `46242`. Xem `docs/SPIKE-RESULT.md`.
 
 ### Việc bảo trì duy nhất
 
-**Client secret trên Azure có hạn dùng.** Hết hạn là bot ngừng ghi được và bạn nhận tin
-`🔑 Bot mất quyền ghi OneDrive`. Khi đó: tạo secret mới trên portal.azure.com, cập nhật
-`.dev.vars`, rồi `node scripts/push-secrets.mjs --target=real && npm run deploy`.
+**Refresh token chết thì cấp lại ngay trong chat.** Bot báo `🔑 Hết hiệu lực xác thực`
+thì gửi `/reauth`, bấm link, đăng nhập — bot tự lấy quyền về qua redirect, không cần gửi
+lại `/reauth`. Không cần mở laptop. Chi tiết ở `docs/SETUP.md` mục 5.
 
-Ngày hết hạn ghi ở `docs/SETUP.md` mục 1.
+Bot in ra refresh token mới — **chép vào `.dev.vars`**, vì D1 và `.dev.vars` dùng chung
+một chuỗi token nên chạy `scripts/*.mjs` là làm token phía bot chết, và ngược lại.
+
+App là public client thật (không có client secret nào trên Azure để mà hết hạn) — xem
+`docs/SETUP.md` mục 1.
 
 ### Đừng mở file gốc bằng Excel desktop khi đang dùng bot
 

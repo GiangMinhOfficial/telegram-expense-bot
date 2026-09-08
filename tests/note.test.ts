@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CUTOFF_DAY, parseNote } from '../src/note';
+import { parseNote } from '../src/note';
 
-/** Đúng hình dạng usedRange thật của sheet Note: bắt đầu ở E4, 7 cột E..K. */
+/** Đúng hình dạng usedRange thật của sheet Note: bắt đầu ở E4, cột E..K. */
 const usedRangeShape = {
   address: 'Note!E4:K12',
   values: [
@@ -13,18 +13,22 @@ const usedRangeShape = {
   ],
 };
 
-/** Vùng cố định A1:H6 — cái mà loadNote thật sự đọc. Cột A..H = chỉ số 0..7. */
-const fixedRange = (b1: unknown) => ({
-  address: 'Note!A1:H6',
+/** Khối H–I trong cùng vùng lệch E4: H là cột chỉ số 3 của mảng (E,F,G,H,...). */
+const usedRangeWithCutoffs = {
+  address: 'Note!E4:K12',
   values: [
-    ['Ngày chốt sao kê thẻ', b1, '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', ''],
-    ['', '', '', '', '', '', '', ''],
-    ['', '', '', '', 'WM', 'Winmart', '', ''],
-    ['', '', '', '', 'TC', 'TocoToco', '', ''],
-    ['', '', '', '', 'VM', 'V-mart', '', ''],
+    ['WM', 'Winmart', '', 'cc', 24, '', ''],
+    ['TC', 'TocoToco', '', 'spl', 20, '', ''],
+    ['MT', 'Mầm Trà', '', 'zlp', 15, '', ''],
   ],
-});
+};
+
+/** Vùng cố định A1:K6 — cái mà loadNote thật sự đọc. Cột A..K = chỉ số 0..10. */
+const fixedRange = (rows: unknown[][]) => ({ address: 'Note!A1:K6', values: rows });
+
+/** Một dòng của khối H–I trong vùng cố định: token ở H (chỉ số 7), mốc ở I (chỉ số 8). */
+const hi = (token: unknown, cutoff: unknown): unknown[] =>
+  ['', '', '', '', '', '', '', token, cutoff, '', ''];
 
 describe('bảng mã viết tắt', () => {
   it('HỒI QUY: vùng bắt đầu từ E4 vẫn đọc được mã — lỗi này đã lên production', () => {
@@ -34,9 +38,11 @@ describe('bảng mã viết tắt', () => {
   });
 
   it('vùng cố định bắt đầu từ A1 cũng đọc được', () =>
-    expect(parseNote(fixedRange(7)).shortcodes).toEqual({
-      WM: 'Winmart', TC: 'TocoToco', VM: 'V-mart',
-    }));
+    expect(parseNote(fixedRange([
+      ['', '', '', '', 'WM', 'Winmart', '', '', '', '', ''],
+      ['', '', '', '', 'TC', 'TocoToco', '', '', '', '', ''],
+      ['', '', '', '', 'VM', 'V-mart', '', '', '', '', ''],
+    ])).shortcodes).toEqual({ WM: 'Winmart', TC: 'TocoToco', VM: 'V-mart' }));
 
   it('viết thường trong file vẫn tra được bằng chữ hoa', () =>
     expect(parseNote({
@@ -51,40 +57,47 @@ describe('bảng mã viết tắt', () => {
     }).shortcodes).toEqual({}));
 });
 
-describe('mốc chốt sao kê', () => {
-  it('đọc số từ ô B1', () =>
-    expect(parseNote(fixedRange(4)).cutoffDay).toBe(4));
+describe('mốc chốt sao kê — khối H (token) / I (ngày chốt)', () => {
+  it('đọc đúng mốc của cả ba nguồn', () =>
+    expect(parseNote(fixedRange([hi('cc', 20), hi('spl', 22), hi('zlp', 15)])).cutoffDays)
+      .toEqual({ cc: 20, spl: 22, zlp: 15 }));
+
+  it('HỒI QUY: vùng usedRange lệch kiểu Note!E4:K12 vẫn đọc đúng khối H–I', () =>
+    expect(parseNote(usedRangeWithCutoffs).cutoffDays).toEqual({ cc: 24, spl: 20, zlp: 15 }));
 
   it('chuỗi số cũng nhận', () =>
-    expect(parseNote(fixedRange('4')).cutoffDay).toBe(4));
+    expect(parseNote(fixedRange([hi('cc', '20')])).cutoffDays.cc).toBe(20));
 
-  it('ô trống → mặc định 7', () =>
-    expect(parseNote(fixedRange('')).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
+  it('token viết hoa hoặc có khoảng trắng vẫn nhận diện được', () =>
+    expect(parseNote(fixedRange([hi(' CC ', 20)])).cutoffDays.cc).toBe(20));
 
-  it('không phải số → mặc định 7', () =>
-    expect(parseNote(fixedRange('bảy')).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
+  it('token lạ ở cột H bị bỏ qua, không làm hỏng gì', () =>
+    expect(parseNote(fixedRange([hi('xyz', 20)])).cutoffDays)
+      .toEqual({ cc: 7, spl: 24, zlp: 28 }));
 
-  it('0 nằm ngoài khoảng → mặc định 7', () =>
-    expect(parseNote(fixedRange(0)).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
+  it('giá trị rỗng → mặc định của đúng nguồn đó', () =>
+    expect(parseNote(fixedRange([hi('spl', '')])).cutoffDays.spl).toBe(24));
 
-  it('29 nằm ngoài khoảng vì không phải tháng nào cũng có → mặc định 7', () =>
-    expect(parseNote(fixedRange(29)).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
+  it('không phải số nguyên → mặc định của đúng nguồn đó', () =>
+    expect(parseNote(fixedRange([hi('zlp', 'hai mươi')])).cutoffDays.zlp).toBe(28));
 
-  it('số lẻ → mặc định 7', () =>
-    expect(parseNote(fixedRange(7.5)).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
+  it('số lẻ → mặc định của đúng nguồn đó', () =>
+    expect(parseNote(fixedRange([hi('cc', 7.5)])).cutoffDays.cc).toBe(7));
 
-  it('vùng không chứa ô B1 → mặc định 7, không được đọc nhầm ô khác', () =>
-    expect(parseNote(usedRangeShape).cutoffDay).toBe(DEFAULT_CUTOFF_DAY));
+  it('0 nằm ngoài khoảng 1–28 → mặc định của đúng nguồn đó', () =>
+    expect(parseNote(fixedRange([hi('cc', 0)])).cutoffDays.cc).toBe(7));
 
-  it('vùng bắt đầu từ cột B: ô B1 là phần tử ĐẦU của mảng, không phải phần tử thứ hai', () =>
-    // Chốt chặn cho phần bù trừ offset trong readCutoff. Bỏ bù trừ đi thì hàm
-    // đọc row[1] = '' và rơi về mặc định 7 — test này đỏ ngay.
-    expect(parseNote({
-      address: 'Note!B1:F2',
-      values: [[4, '', '', '', '']],
-    }).cutoffDay).toBe(4));
+  it('29 nằm ngoài khoảng vì không phải tháng nào cũng có → mặc định của nguồn đó', () =>
+    expect(parseNote(fixedRange([hi('spl', 29)])).cutoffDays.spl).toBe(24));
 
-  it('mảng rỗng → mặc định 7', () =>
-    expect(parseNote({ address: 'Note!A1:H6', values: [] }).cutoffDay)
-      .toBe(DEFAULT_CUTOFF_DAY));
+  it('nguồn thiếu hẳn khỏi khối → dùng mặc định của nguồn đó', () =>
+    expect(parseNote(fixedRange([hi('cc', 20)])).cutoffDays)
+      .toEqual({ cc: 20, spl: 24, zlp: 28 }));
+
+  it('khối trống hoàn toàn → cả ba nguồn dùng mặc định của chính nó', () =>
+    expect(parseNote(fixedRange([])).cutoffDays).toEqual({ cc: 7, spl: 24, zlp: 28 }));
+
+  it('mảng rỗng → cả ba nguồn dùng mặc định', () =>
+    expect(parseNote({ address: 'Note!A1:K6', values: [] }).cutoffDays)
+      .toEqual({ cc: 7, spl: 24, zlp: 28 }));
 });

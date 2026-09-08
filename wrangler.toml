@@ -12,5 +12,6 @@ database_id = "e579c622-fe7c-4407-95ef-d6d1d4641cd1"
 crons = ["*/5 * * * *"]
 
 # Không để bí mật ở đây. Nạp bằng: npx wrangler secret put <TÊN>
-#   MS_CLIENT_ID  MS_CLIENT_SECRET  MS_REFRESH_TOKEN  DRIVE_ITEM_ID
+#   MS_CLIENT_ID  DRIVE_ITEM_ID
 #   TELEGRAM_BOT_TOKEN  TELEGRAM_SECRET  ALLOWED_CHAT_ID
+# App là public client thật từ 2026-09-02 — không còn MS_CLIENT_SECRET.
