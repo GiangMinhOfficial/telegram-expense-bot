@@ -1,5 +1,13 @@
 # telegram-expense-bot
 
+Cloudflare Worker that logs an expense into an Excel workbook on OneDrive from a single Telegram message.
+
+Working language is Vietnamese: commit messages, README, and the bot's user-facing output.
+
+## Asking me things
+
+I can't review TypeScript. Ask at the black-box level: the Telegram message that goes in, the row that lands in the workbook, the reply the user reads. A decision that only reads as code is yours to make — make it, then tell me the consequence.
+
 ## Agent skills
 
 ### Issue tracker
