@@ -15,13 +15,26 @@ Phép tìm dòng là một **hàm thuần** (nhận các dòng và bản đã l�
 
 **Status:** ready-for-agent
 
-- [ ] Đọc các dòng của bảng trong một lệnh gọi (`dataBodyRange`, chỉ `values`)
-- [ ] Hàm thuần tìm dòng: khớp cả ba ô với bản đã lưu; nhiều dòng khớp → dòng **dưới cùng**; không khớp → `null`
-- [ ] Ô đọc về là chuỗi rỗng không khớp nhầm với số `0`
-- [ ] Khớp được dòng có tiền tố nguồn (`[cc] `, `[spl] `, `[zlp] `)
-- [ ] Không dòng nào khớp → không xoá, báo người dùng sửa tay; câu báo không còn nói "dòng ở vị trí cũ"
-- [ ] Không đọc được bảng → giữ câu báo "không đọc được" hiện có, không xoá
-- [ ] Tin "↩️ Đã hoàn tác" giữ nguyên
-- [ ] Cột `row_index` trong D1 giữ nguyên, không migration
-- [ ] Test hàm thuần: dòng đã đổi chỗ, nhiều dòng giống nhau, không khớp, có tiền tố, ô rỗng
-- [ ] `npm test` và `npm run typecheck` qua
+- [x] Đọc các dòng của bảng trong một lệnh gọi (`dataBodyRange`, chỉ `values`)
+- [x] Hàm thuần tìm dòng: khớp cả ba ô với bản đã lưu; nhiều dòng khớp → dòng **dưới cùng**; không khớp → `null`
+- [x] Ô đọc về là chuỗi rỗng không khớp nhầm với số `0`
+- [x] Khớp được dòng có tiền tố nguồn (`[cc] `, `[spl] `, `[zlp] `)
+- [x] Không dòng nào khớp → không xoá, báo người dùng sửa tay; câu báo không còn nói "dòng ở vị trí cũ"
+- [x] Không đọc được bảng → giữ câu báo "không đọc được" hiện có, không xoá
+- [x] Tin "↩️ Đã hoàn tác" giữ nguyên
+- [x] Cột `row_index` trong D1 giữ nguyên, không migration
+- [x] Test hàm thuần: dòng đã đổi chỗ, nhiều dòng giống nhau, không khớp, có tiền tố, ô rỗng
+- [x] `npm test` và `npm run typecheck` qua
+
+## Comments
+
+Đã làm xong, commit trên `feat/sap-xep-bang` (`feat: /undo tìm khoản theo nội dung…` và
+`refactor: đặt tên RowValues…`). Cả 10 ô ở trên đã tick; `npm test` (309 test) và
+`npm run typecheck` qua. Chưa chạy với file Excel thật.
+
+- Hàm thuần `findRowIndex` ở `src/graph/find-row.ts`; đọc bảng bằng `readTableRows`
+  (`dataBodyRange?$select=values`) ở `src/graph/workbook.ts`; `readRow` đã bỏ vì không còn ai dùng.
+- Hai ô số (ngày, số tiền) so chặt theo kiểu. Ô mô tả đổi sang chuỗi trước khi so, vì mô tả toàn
+  chữ số ("100") được Excel đọc về là số.
+- Tin báo không khớp nay nêu cả khoản (`mô tả · số tiền`) để người dùng biết cần sửa dòng nào.
+- Kiểu `RowValues` (`src/graph/sheet.ts`) đặt tên cho ba ô của một khoản.
