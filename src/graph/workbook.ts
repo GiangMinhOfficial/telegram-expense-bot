@@ -13,7 +13,7 @@ const tbl = (env: Env, table: string) =>
  */
 const DATE_FORMAT = 'd-mmm';
 
-/** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để /undo dùng lại. */
+/** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để vá định dạng ngày. */
 export async function appendRow(
   env: Env, table: string, values: [string, number, number],
 ): Promise<number> {
@@ -46,13 +46,17 @@ export async function deleteRow(env: Env, table: string, index: number): Promise
   await graphFetch(env, `${tbl(env, table)}/rows/itemAt(index=${index})`, { method: 'DELETE' });
 }
 
-/** Đọc lại dòng để đối chiếu trước khi xoá — tránh xoá nhầm khi bảng đã dịch. */
-export async function readRow(env: Env, table: string, index: number): Promise<unknown[] | null> {
+/**
+ * Đọc mọi dòng dữ liệu của bảng trong một lệnh gọi (không gồm dòng tiêu đề).
+ * Chỉ số trong mảng trả về chính là chỉ số dòng của `rows/itemAt` / `deleteRow`.
+ * Trả `null` khi không đọc được, để phân biệt với bảng rỗng.
+ */
+export async function readTableRows(env: Env, table: string): Promise<unknown[][] | null> {
   try {
     const r = (await graphFetch(
-      env, `${tbl(env, table)}/rows/itemAt(index=${index})`,
+      env, `${tbl(env, table)}/dataBodyRange?$select=values`,
     )) as { values?: unknown[][] };
-    return r.values?.[0] ?? null;
+    return r.values ?? null;
   } catch {
     return null;
   }
