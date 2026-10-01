@@ -1,6 +1,7 @@
 import { CATEGORIES, sheetName, tableName } from '../config';
 import { logWrite, setLastWrite } from '../db';
 import type { Env } from '../env';
+import type { RowValues } from '../graph/sheet';
 import { computeTotals, sumDay } from '../graph/totals';
 import { appendRow, fixDateFormat, readSheet } from '../graph/workbook';
 import { toExcelSerial, vnToday } from '../parse/date';
@@ -20,7 +21,7 @@ export type ExactEntry = Omit<ParsedEntry, 'amount'> & {
  * CHỖ DUY NHẤT ghép tiền tố nguồn (`[cc] `, `[spl] `, `[zlp] `) vào mô tả —
  * xem docs/adr/0001-tien-to-nguon-trong-cot-mo-ta.md.
  */
-export function buildRow(e: ExactEntry): [string, number, number] {
+export function buildRow(e: ExactEntry): RowValues {
   const description = e.source ? `[${e.source}] ${e.description}` : e.description;
   return [description, toExcelSerial(e.date), e.amount];
 }

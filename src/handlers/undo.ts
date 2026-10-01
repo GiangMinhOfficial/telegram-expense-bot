@@ -1,6 +1,7 @@
 import { takeLastWrite } from '../db';
 import type { Env } from '../env';
 import { findRowIndex } from '../graph/find-row';
+import type { RowValues } from '../graph/sheet';
 import { deleteRow, readTableRows } from '../graph/workbook';
 import { sendMessage } from '../telegram/api';
 import { formatVND } from '../telegram/format';
@@ -12,7 +13,9 @@ export async function handleUndo(env: Env, chatId: number): Promise<void> {
     return;
   }
 
-  const expected = JSON.parse(last.valuesJson) as [string, number, number];
+  const expected = JSON.parse(last.valuesJson) as RowValues;
+  const [description, , amount] = expected;
+  const label = `${description} · ${formatVND(amount)}`;
   const rows = await readTableRows(env, last.tableName);
 
   if (!rows) {
@@ -30,12 +33,12 @@ export async function handleUndo(env: Env, chatId: number): Promise<void> {
   if (index === null) {
     await sendMessage(
       env, chatId,
-      `⚠️ Không thấy dòng nào khớp khoản vừa ghi (${expected[0]} · ${formatVND(expected[2])}) ` +
+      `⚠️ Không thấy dòng nào khớp khoản vừa ghi (${label}) ` +
       'trong bảng. Không hoàn tác để tránh xoá nhầm — bạn sửa tay trong Excel giúp.',
     );
     return;
   }
 
   await deleteRow(env, last.tableName, index);
-  await sendMessage(env, chatId, `↩️ Đã hoàn tác: ${expected[0]} · ${formatVND(expected[2])}`);
+  await sendMessage(env, chatId, `↩️ Đã hoàn tác: ${label}`);
 }

@@ -1,6 +1,6 @@
 import type { Env } from '../env';
 import { graphFetch } from './client';
-import type { SheetData } from './sheet';
+import type { RowValues, SheetData } from './sheet';
 
 const item = (env: Env) => `/me/drive/items/${env.DRIVE_ITEM_ID}/workbook`;
 const tbl = (env: Env, table: string) =>
@@ -15,7 +15,7 @@ const DATE_FORMAT = 'd-mmm';
 
 /** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để vá định dạng ngày. */
 export async function appendRow(
-  env: Env, table: string, values: [string, number, number],
+  env: Env, table: string, values: RowValues,
 ): Promise<number> {
   const r = (await graphFetch(env, `${tbl(env, table)}/rows/add`, {
     method: 'POST',
