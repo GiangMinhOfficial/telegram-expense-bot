@@ -3,14 +3,12 @@ import { logWrite, setLastWrite } from '../db';
 import type { Env } from '../env';
 import type { RowValues } from '../graph/sheet';
 import { computeTotals, sumDay } from '../graph/totals';
-import { planTidy } from '../graph/tidy-plan';
-import {
-  appendBlankRow, appendRow, deleteRow, fixDateFormat, readSheet, readTableRows, sortTableByDate,
-} from '../graph/workbook';
+import { appendRow, fixDateFormat, readSheet } from '../graph/workbook';
 import { toExcelSerial, vnToday } from '../parse/date';
 import type { ParsedEntry } from '../parse/message';
 import { sendMessage } from '../telegram/api';
 import { confirmation } from '../telegram/format';
+import { tidyTable } from './tidy';
 
 export type ExactEntry = Omit<ParsedEntry, 'amount'> & {
   amount: number;
@@ -75,31 +73,4 @@ export async function performWrite(
   // Dọn SAU tin xác nhận và không bao giờ ném ra ngoài: ném ra là khoản bị đẩy vào hàng
   // đợi ghi lại và ghi trùng dù nó đã nằm trong Excel.
   await tidyTable(env, chatId, table);
-}
-
-/**
- * Dọn bảng vừa nhận khoản: sắp theo ngày, rồi chỉnh về đúng một dòng trống ở đáy.
- * Mọi lỗi đổi thành một tin cảnh báo — hàm này không ném.
- */
-async function tidyTable(env: Env, chatId: number, table: string): Promise<void> {
-  try {
-    await sortTableByDate(env, table);
-    const rows = await readTableRows(env, table);
-    if (!rows) throw new Error('không đọc được các dòng của bảng sau khi sắp');
-
-    const plan = planTidy(rows);
-    // Xoá từ dưới lên để chỉ số không trôi; tuần tự vì các lệnh xoá đổi chỉ số của nhau.
-    for (const index of plan.deleteIndexes) await deleteRow(env, table, index);
-    if (plan.addBlank) await appendBlankRow(env, table);
-  } catch (err) {
-    console.error('don bang that bai:', table, err);
-    try {
-      await sendMessage(
-        env, chatId,
-        `⚠️ Đã ghi khoản nhưng chưa sắp xếp được bảng ${table}. Lần ghi sau sẽ tự xếp lại.`,
-      );
-    } catch (sendErr) {
-      console.error('gui canh bao don bang that bai:', sendErr);
-    }
-  }
 }

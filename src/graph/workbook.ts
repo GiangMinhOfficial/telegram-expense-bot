@@ -1,6 +1,6 @@
 import type { Env } from '../env';
 import { graphFetch } from './client';
-import type { RowValues, SheetData } from './sheet';
+import { DATE_COL, ROW_WIDTH, type RowValues, type SheetData } from './sheet';
 
 const item = (env: Env) => `/me/drive/items/${env.DRIVE_ITEM_ID}/workbook`;
 const tbl = (env: Env, table: string) =>
@@ -13,14 +13,17 @@ const tbl = (env: Env, table: string) =>
  */
 const DATE_FORMAT = 'd-mmm';
 
+const addRow = async (env: Env, table: string, values: unknown[]) =>
+  (await graphFetch(env, `${tbl(env, table)}/rows/add`, {
+    method: 'POST',
+    body: JSON.stringify({ values: [values] }),
+  })) as { index?: number };
+
 /** Nối một dòng vào cuối bảng. Trả về chỉ số dòng (0-based) để vá định dạng ngày. */
 export async function appendRow(
   env: Env, table: string, values: RowValues,
 ): Promise<number> {
-  const r = (await graphFetch(env, `${tbl(env, table)}/rows/add`, {
-    method: 'POST',
-    body: JSON.stringify({ values: [values] }),
-  })) as { index?: number };
+  const r = await addRow(env, table, values);
   if (typeof r.index !== 'number') throw new Error('Graph không trả về index của dòng vừa thêm');
   return r.index;
 }
@@ -44,7 +47,7 @@ export async function fixDateFormat(
 
 /**
  * Sắp bảng theo cột Ngày tăng dần. Sắp ổn định: cùng ngày giữ thứ tự cũ, định dạng ô đi
- * theo dòng. `key` là chỉ số cột TRONG BẢNG (Ngày = 1) — xem docs/SPIKE-SORT-RESULT.md.
+ * theo dòng. `key` là chỉ số cột TRONG BẢNG (`DATE_COL`) — xem docs/SPIKE-SORT-RESULT.md.
  *
  * Sau lệnh này chỉ số dòng cũ không còn trỏ đúng dòng nữa: mọi lệnh theo chỉ số
  * (`fixDateFormat`) phải xong trước.
@@ -52,16 +55,13 @@ export async function fixDateFormat(
 export async function sortTableByDate(env: Env, table: string): Promise<void> {
   await graphFetch(env, `${tbl(env, table)}/sort/apply`, {
     method: 'POST',
-    body: JSON.stringify({ fields: [{ key: 1, ascending: true }] }),
+    body: JSON.stringify({ fields: [{ key: DATE_COL, ascending: true }] }),
   });
 }
 
 /** Thêm một dòng trống (ba ô null) vào cuối bảng. */
 export async function appendBlankRow(env: Env, table: string): Promise<void> {
-  await graphFetch(env, `${tbl(env, table)}/rows/add`, {
-    method: 'POST',
-    body: JSON.stringify({ values: [[null, null, null]] }),
-  });
+  await addRow(env, table, Array<null>(ROW_WIDTH).fill(null));
 }
 
 export async function deleteRow(env: Env, table: string, index: number): Promise<void> {

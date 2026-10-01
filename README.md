@@ -117,7 +117,7 @@ Microsoft nên `SUBTOTAL` và sheet `Tóm tắt` tự tính lại — bot không
 
 Bảng đích suy ra trực tiếp: `/food` + ngày trong tháng 8 → bảng `food_8`.
 
-**Bảng tự sắp.** Sau khi trả lời xác nhận, bot dọn bảng vừa nhận khoản: các khoản xếp theo
+**Bảng tự dọn.** Sau khi trả lời xác nhận, bot dọn bảng vừa nhận khoản: các khoản xếp theo
 ngày tăng dần (cùng ngày giữ thứ tự ghi), dòng thiếu ngày nằm dưới, và đáy bảng luôn có
 đúng một dòng trống để gõ tay. Chỉ bảng vừa ghi được dọn — bảng khác tự được dọn ở lần ghi
 kế tiếp vào nó. Dọn lỗi thì bot gửi một tin `⚠️` riêng; khoản vẫn đã nằm trong file và không

@@ -1,3 +1,5 @@
+import { ROW_WIDTH } from './sheet';
+
 export interface TidyPlan {
   /** Chỉ số dòng cần xoá, xếp từ dưới lên để xoá dòng này không làm trôi chỉ số dòng kia. */
   deleteIndexes: number[];
@@ -7,7 +9,7 @@ export interface TidyPlan {
 
 /** Dòng trống = cả ba ô rỗng. Graph trả ô rỗng là `''`; `null` và ô thiếu cũng tính. */
 const isEmpty = (v: unknown): boolean => v === '' || v === null || v === undefined;
-const isBlankRow = (row: unknown[]): boolean => [0, 1, 2].every((c) => isEmpty(row[c]));
+const isBlankRow = (row: unknown[]): boolean => row.slice(0, ROW_WIDTH).every(isEmpty);
 
 /**
  * Kế hoạch đưa bảng về đúng một dòng trống ở đáy, tính trên các dòng SAU KHI SẮP.
