@@ -42,6 +42,28 @@ export async function fixDateFormat(
   });
 }
 
+/**
+ * Sắp bảng theo cột Ngày tăng dần. Sắp ổn định: cùng ngày giữ thứ tự cũ, định dạng ô đi
+ * theo dòng. `key` là chỉ số cột TRONG BẢNG (Ngày = 1) — xem docs/SPIKE-SORT-RESULT.md.
+ *
+ * Sau lệnh này chỉ số dòng cũ không còn trỏ đúng dòng nữa: mọi lệnh theo chỉ số
+ * (`fixDateFormat`) phải xong trước.
+ */
+export async function sortTableByDate(env: Env, table: string): Promise<void> {
+  await graphFetch(env, `${tbl(env, table)}/sort/apply`, {
+    method: 'POST',
+    body: JSON.stringify({ fields: [{ key: 1, ascending: true }] }),
+  });
+}
+
+/** Thêm một dòng trống (ba ô null) vào cuối bảng. */
+export async function appendBlankRow(env: Env, table: string): Promise<void> {
+  await graphFetch(env, `${tbl(env, table)}/rows/add`, {
+    method: 'POST',
+    body: JSON.stringify({ values: [[null, null, null]] }),
+  });
+}
+
 export async function deleteRow(env: Env, table: string, index: number): Promise<void> {
   await graphFetch(env, `${tbl(env, table)}/rows/itemAt(index=${index})`, { method: 'DELETE' });
 }

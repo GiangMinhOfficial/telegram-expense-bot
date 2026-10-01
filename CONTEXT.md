@@ -71,6 +71,18 @@ Nơi giữ các khoản đã nhận của người dùng nhưng chưa ghi đư�
 để một lỗi phía Graph không bao giờ làm mất khoản của người dùng.
 _Tránh_: outbox, queue.
 
+**Dọn bảng**:
+Việc bot làm trên bảng vừa nhận khoản, sau khi đã gửi tin xác nhận: sắp các khoản theo
+ngày tăng dần (cùng ngày giữ thứ tự ghi, dòng thiếu ngày nằm dưới) rồi bảo đảm đáy bảng
+có đúng một **dòng trống**. Lỗi khi dọn chỉ gửi một tin cảnh báo, không làm khoản vào hàng
+đợi ghi lại. `/undo` không dọn.
+_Tránh_: "sắp xếp" trống không — dọn gồm cả việc xoá/thêm dòng trống.
+
+**Dòng trống**:
+Dòng của bảng chi tiêu có cả ba ô (mô tả, ngày, số tiền) rỗng. Dòng thiếu một phần — ví dụ
+có mô tả mà chưa có số tiền — không phải dòng trống và không bao giờ bị xoá.
+_Tránh_: "dòng thừa".
+
 **Số tiền mơ hồ**:
 Số tiền trong khoảng 1000–9999, không đoán được người dùng ghi nghìn hay đồng.
 Bot hỏi lại thay vì đoán.
