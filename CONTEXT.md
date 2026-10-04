@@ -81,9 +81,9 @@ _Tránh_: outbox, queue.
 **Dọn bảng**:
 Việc bot làm trên bảng vừa nhận khoản, sau khi đã gửi tin xác nhận: sắp các khoản theo
 ngày tăng dần (cùng ngày giữ thứ tự ghi, dòng thiếu ngày nằm dưới) rồi bảo đảm đáy bảng
-có đúng một **dòng trống**. Lỗi khi dọn chỉ gửi một tin cảnh báo, không làm khoản vào hàng
-đợi ghi lại. `/undo` không dọn.
-_Tránh_: "sắp xếp" trống không — dọn gồm cả việc xoá/thêm dòng trống.
+có ít nhất một **dòng trống**. Dọn bảng chỉ thêm, không bao giờ xoá dòng nào. Lỗi khi dọn
+chỉ gửi một tin cảnh báo, không làm khoản vào hàng đợi ghi lại. `/undo` không dọn.
+_Tránh_: "sắp xếp" trống không — dọn gồm cả việc thêm dòng trống.
 
 **Dòng trống**:
 Dòng của bảng chi tiêu có cả ba ô (mô tả, ngày, số tiền) rỗng. Dòng thiếu một phần — ví dụ

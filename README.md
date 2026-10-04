@@ -130,7 +130,8 @@ Bảng đích suy ra trực tiếp: `/food` + ngày trong tháng 8 → bảng `f
 
 **Bảng tự dọn.** Sau khi trả lời xác nhận, bot dọn bảng vừa nhận khoản: các khoản xếp theo
 ngày tăng dần (cùng ngày giữ thứ tự ghi), dòng thiếu ngày nằm dưới, và đáy bảng luôn có
-đúng một dòng trống để gõ tay. Chỉ bảng vừa ghi được dọn — bảng khác tự được dọn ở lần ghi
+ít nhất một dòng trống để gõ tay. Bot chỉ thêm dòng trống, **không bao giờ xoá dòng nào**
+khi dọn — dòng trống thừa thì bạn tự xoá tay. Chỉ bảng vừa ghi được dọn — bảng khác tự được dọn ở lần ghi
 kế tiếp vào nó. Dọn lỗi thì bot gửi một tin `⚠️` riêng; khoản vẫn đã nằm trong file và không
 bị ghi lại. `/undo` tìm khoản theo nội dung nên vẫn xoá đúng khoản dù nó đã đổi chỗ.
 
