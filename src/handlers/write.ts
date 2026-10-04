@@ -1,12 +1,14 @@
 import { CATEGORIES, sheetName, tableName } from '../config';
 import { logWrite, setLastWrite } from '../db';
 import type { Env } from '../env';
+import type { RowValues } from '../graph/sheet';
 import { computeTotals, sumDay } from '../graph/totals';
 import { appendRow, fixDateFormat, readSheet } from '../graph/workbook';
 import { toExcelSerial, vnToday } from '../parse/date';
 import type { ParsedEntry } from '../parse/message';
 import { sendMessage } from '../telegram/api';
 import { confirmation } from '../telegram/format';
+import { tidyTable } from './tidy';
 
 export type ExactEntry = Omit<ParsedEntry, 'amount'> & {
   amount: number;
@@ -20,7 +22,7 @@ export type ExactEntry = Omit<ParsedEntry, 'amount'> & {
  * CHỖ DUY NHẤT ghép tiền tố nguồn (`[cc] `, `[spl] `, `[zlp] `) vào mô tả —
  * xem docs/adr/0001-tien-to-nguon-trong-cot-mo-ta.md.
  */
-export function buildRow(e: ExactEntry): [string, number, number] {
+export function buildRow(e: ExactEntry): RowValues {
   const description = e.source ? `[${e.source}] ${e.description}` : e.description;
   return [description, toExcelSerial(e.date), e.amount];
 }
@@ -67,4 +69,8 @@ export async function performWrite(
   const isToday = today.y === e.date.y && today.m === e.date.m && today.d === e.date.d;
 
   await sendMessage(env, chatId, confirmation({ ...e, label }, totals, isToday));
+
+  // Dọn SAU tin xác nhận và không bao giờ ném ra ngoài: ném ra là khoản bị đẩy vào hàng
+  // đợi ghi lại và ghi trùng dù nó đã nằm trong Excel.
+  await tidyTable(env, chatId, table);
 }

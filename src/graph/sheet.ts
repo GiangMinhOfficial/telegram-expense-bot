@@ -28,6 +28,13 @@ export function cellAt(row: unknown[], absCol: number, offset: number): unknown 
   return i >= 0 ? row[i] : undefined;
 }
 
+/** Ba ô một khoản ghi vào bảng chi tiêu: mô tả (đã gồm tiền tố nguồn), serial ngày, số tiền. */
+export type RowValues = [description: string, serial: number, amount: number];
+
+/** Số ô một dòng của bảng chi tiêu, và chỉ số cột Ngày TRONG BẢNG (0-based). */
+export const ROW_WIDTH = 3;
+export const DATE_COL = 1;
+
 // ── Bố cục sheet tháng ────────────────────────────────────────────────────
 // Trước đây `totals.ts` và `query.ts` mỗi file giữ một bản sao của khối này.
 // Gom về đây để sửa bố cục sheet chỉ phải sửa một chỗ.
