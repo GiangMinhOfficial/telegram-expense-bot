@@ -56,14 +56,14 @@ const send = async (text) => {
 
 // ── Boi canh ────────────────────────────────────────────────────────────────
 // Khoi H (token) - I (moc chot) cua sheet Note, quet theo cot — dung form voi
-// parseNote() trong src/note.ts. 7 la mac dinh cua rieng 'cc' (DEFERRED_SOURCES
+// parseNote() trong src/note.ts. 7 la mac dinh cua rieng 'hsbc' (DEFERRED_SOURCES
 // trong src/config.ts), khong con la mac dinh chung cho ca sheet nua.
 const noteRows = (await g(`/worksheets('Note')/range(address='H1:I50')?$select=values`))
   .values ?? [];
-const cutoffRaw = noteRows.find((r) => String(r[0] ?? '').trim().toLowerCase() === 'cc')?.[1];
+const cutoffRaw = noteRows.find((r) => String(r[0] ?? '').trim().toLowerCase() === 'hsbc')?.[1];
 const cutoffN = typeof cutoffRaw === 'number' ? cutoffRaw : Number.parseInt(String(cutoffRaw ?? ''), 10);
 const cutoff = Number.isInteger(cutoffN) && cutoffN >= 1 && cutoffN <= 28 ? cutoffN : 7;
-console.log(`Moc chot cc doc tu khoi H-I: ${JSON.stringify(cutoffRaw)} -> dung ${cutoff}`);
+console.log(`Moc chot hsbc doc tu khoi H-I: ${JSON.stringify(cutoffRaw)} -> dung ${cutoff}`);
 
 const now = new Date(Date.now() + 7 * 3600 * 1000); // gio Viet Nam
 const year = now.getUTCFullYear();
@@ -95,7 +95,7 @@ const hasTag = (rows, t) => rows.some((r) => String(r.values?.[0]?.[0] ?? '').in
 // ── 1. Khoan the sau moc chot phai nhay sang thang sau ───────────────────────
 console.log(`\n=== Khoan the ngay ${day}/${month} (sau moc ${cutoff}) ===`);
 const before = await summary();
-const status = await send(`/food ${tag} ${AMOUNT} ${day}/${month} cc`);
+const status = await send(`/food ${tag} ${AMOUNT} ${day}/${month} hsbc`);
 check('Worker nhan update', status === 200, `HTTP ${status}`);
 
 check(`dong nam o ${dstTable}`, hasTag(await rowsOf(dstTable), tag));
@@ -139,9 +139,9 @@ check('KHONG ghi nguyen chu "TC"', !literal);
 await send('/undo');
 
 // ── 4. Khoan khong duoc phep quet the ────────────────────────────────────────
-console.log('\n=== Tu choi cc voi thu nhap ===');
+console.log('\n=== Tu choi hsbc voi thu nhap ===');
 const incomeBefore = (await rowsOf(`income_${month}`)).length;
-await send('/income luong test 20tr cc');
+await send('/income luong test 20tr hsbc');
 check('khong ghi dong nao vao income',
   (await rowsOf(`income_${month}`)).length === incomeBefore);
 

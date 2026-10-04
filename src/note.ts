@@ -6,7 +6,7 @@ import { readRange } from './graph/workbook';
 export interface NoteConfig {
   /** Mã viết tắt → tên đầy đủ. Nguồn: cột E–F của sheet Note */
   shortcodes: Record<string, string>;
-  /** Mốc chốt sao kê của cả ba nguồn. Nguồn: khối H (token) – I (ngày chốt) của sheet Note */
+  /** Mốc chốt sao kê của mọi nguồn. Nguồn: khối H (token) – I (ngày chốt) của sheet Note */
   cutoffDays: Record<DeferredSource, number>;
 }
 

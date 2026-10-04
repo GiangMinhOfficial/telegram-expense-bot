@@ -55,7 +55,7 @@ export function confirmation(
 
 /**
  * Khoản trả sau tháng 12 rơi sang kỳ trả năm sau — in lại đủ để chép tay, cho
- * cả ba nguồn.
+ * mọi nguồn.
  *
  * Kèm emoji nguồn (không phải chữ, giống dòng nguồn trong `confirmation`) để
  * người chép tay biết viết tiền tố nào — mô tả ở đây vẫn là chữ người dùng gõ,

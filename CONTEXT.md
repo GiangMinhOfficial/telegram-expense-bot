@@ -66,6 +66,13 @@ _Tránh_: dùng "tháng" trống không khi hai tháng này có thể lệch nha
 Ngày trong tháng mà kỳ sao kê thẻ tín dụng khép lại. Quẹt sau ngày này thì trả
 vào tháng sau.
 
+**Nguồn trả sau**:
+Thứ người dùng trả bằng mà tiền chưa rời tài khoản ngay: thẻ HSBC (`hsbc`), thẻ VPBank
+(`vpb`), SPayLater (`spl`), ví trả sau ZaloPay (`zlp`). Mỗi nguồn có ngày chốt sao kê
+riêng. Không có nguồn nghĩa là tiền rời tài khoản ngay.
+_Tránh_: "thẻ tín dụng" trống không — có hai thẻ, phải nói rõ thẻ nào. `cc` là token cũ
+của thẻ HSBC, chỉ còn sống trong tiền tố `[cc]` của các dòng đã ghi trước khi đổi.
+
 **Hàng đợi ghi lại**:
 Nơi giữ các khoản đã nhận của người dùng nhưng chưa ghi được vào Excel. Tồn tại
 để một lỗi phía Graph không bao giờ làm mất khoản của người dùng.

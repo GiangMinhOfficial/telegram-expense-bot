@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMessage } from '../src/parse/message';
+import { legacySource, parseMessage } from '../src/parse/message';
 
 const NOW = Date.UTC(2026, 7, 8, 5, 0); // 12:00 ngày 08/08/2026 giờ VN
 const SC = { WM: 'Winmart', TC: 'TocoToco', MT: 'Mầm Trà', VM: 'V-mart' };
@@ -47,39 +47,39 @@ describe('bung mã viết tắt', () => {
 });
 
 describe('đánh dấu quẹt thẻ', () => {
-  it('không có cc → không phải khoản thẻ', () =>
+  it('không có hsbc → không phải khoản thẻ', () =>
     expect(ok('/food ăn trưa 40k').source).toBe(null));
 
-  it('cc ở cuối', () => {
-    const e = ok('/food ăn trưa 40k cc');
-    expect(e.source).toBe('cc');
+  it('hsbc ở cuối', () => {
+    const e = ok('/food ăn trưa 40k hsbc');
+    expect(e.source).toBe('hsbc');
     expect(e.description).toBe('ăn trưa');
   });
 
-  it('cc ở giữa', () => {
-    const e = ok('/food ăn trưa cc 40k');
-    expect(e.source).toBe('cc');
+  it('hsbc ở giữa', () => {
+    const e = ok('/food ăn trưa hsbc 40k');
+    expect(e.source).toBe('hsbc');
     expect(e.description).toBe('ăn trưa');
   });
 
-  it('cc ngay sau lệnh', () => {
-    const e = ok('/food cc ăn trưa 40k');
-    expect(e.source).toBe('cc');
+  it('hsbc ngay sau lệnh', () => {
+    const e = ok('/food hsbc ăn trưa 40k');
+    expect(e.source).toBe('hsbc');
     expect(e.description).toBe('ăn trưa');
   });
 
-  it('CC viết hoa cũng nhận', () =>
-    expect(ok('/food ăn trưa 40k CC').source).toBe('cc'));
+  it('HSBC viết hoa cũng nhận', () =>
+    expect(ok('/food ăn trưa 40k HSBC').source).toBe('hsbc'));
 
   it('gõ hai lần vẫn tính là một', () => {
-    const e = ok('/food cc ăn trưa 40k cc');
-    expect(e.source).toBe('cc');
+    const e = ok('/food hsbc ăn trưa 40k hsbc');
+    expect(e.source).toBe('hsbc');
     expect(e.description).toBe('ăn trưa');
   });
 
-  it('cc đi cùng ngày lùi', () => {
-    const e = ok('/food ăn trưa 40k hqua cc');
-    expect(e.source).toBe('cc');
+  it('hsbc đi cùng ngày lùi', () => {
+    const e = ok('/food ăn trưa 40k hqua hsbc');
+    expect(e.source).toBe('hsbc');
     expect(e.date).toEqual({ y: 2026, m: 8, d: 7 });
     expect(e.description).toBe('ăn trưa');
   });
@@ -95,14 +95,54 @@ describe('đánh dấu quẹt thẻ', () => {
   it('"the" cũng không phải từ khoá', () =>
     expect(ok('/other mua the game 100k').source).toBe(null));
 
-  it('cc dính liền chữ khác thì không phải từ khoá', () => {
-    const e = ok('/other ccorp 40k');
+  it('hsbc dính liền chữ khác thì không phải từ khoá', () => {
+    const e = ok('/other hsbcorp 40k');
     expect(e.source).toBe(null);
-    expect(e.description).toBe('ccorp');
+    expect(e.description).toBe('hsbcorp');
   });
 });
 
-describe('cc chỉ dùng cho nhóm chi tiêu', () => {
+describe('thẻ VPBank và chữ cc cũ', () => {
+  it('vpb được bóc khỏi mô tả, ở đâu trong câu cũng vậy', () => {
+    for (const t of ['/food ăn trưa 40k vpb', '/food vpb ăn trưa 40k', '/food ăn trưa 40k VPB']) {
+      const e = ok(t);
+      expect(e.source).toBe('vpb');
+      expect(e.description).toBe('ăn trưa');
+    }
+  });
+
+  it('cc không còn là token: ở lại trong mô tả, khoản không có nguồn', () => {
+    const e = ok('/food ăn trưa 40k cc');
+    expect(e.source).toBe(null);
+    expect(e.description).toBe('ăn trưa cc');
+  });
+
+  it('cc đi cùng một token thật thì không tính là nguồn thứ hai', () => {
+    const e = ok('/food ăn trưa cc 40k vpb');
+    expect(e.source).toBe('vpb');
+    expect(e.description).toBe('ăn trưa cc');
+  });
+
+  it('hsbc và vpb cùng lúc → lỗi', () => {
+    const r = parse('/food ăn trưa 40k hsbc vpb');
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe('legacySource: bản ghi tạo ra trước khi đổi token', () => {
+  it('source "cc" cũ → hsbc', () => expect(legacySource({ source: 'cc' })).toBe('hsbc'));
+  it('isCard cũ → hsbc', () => expect(legacySource({ isCard: true })).toBe('hsbc'));
+  it('nguồn hiện hành giữ nguyên', () => {
+    expect(legacySource({ source: 'vpb' })).toBe('vpb');
+    expect(legacySource({ source: 'spl', isCard: true })).toBe('spl');
+  });
+  it('không có nguồn → null', () => {
+    expect(legacySource({})).toBe(null);
+    expect(legacySource({ source: null, isCard: false })).toBe(null);
+  });
+});
+
+describe('hsbc chỉ dùng cho nhóm chi tiêu', () => {
   const err = (t: string) => {
     const r = parse(t);
     if (r.ok) throw new Error('kỳ vọng lỗi');
@@ -110,13 +150,13 @@ describe('cc chỉ dùng cho nhóm chi tiêu', () => {
   };
 
   it.each(['food', 'eat_out', 'transport', 'force', 'other', 'other_expense'])(
-    '/%s nhận cc', (c) => expect(ok(`/${c} test 10k cc`).source).toBe('cc'));
+    '/%s nhận hsbc', (c) => expect(ok(`/${c} test 10k hsbc`).source).toBe('hsbc'));
 
   it.each(['income', 'invest', 'saving'])(
-    '/%s từ chối cc', (c) => expect(err(`/${c} test 10k cc`)).toMatch(/cc/i));
+    '/%s từ chối hsbc', (c) => expect(err(`/${c} test 10k hsbc`)).toMatch(/hsbc/i));
 
-  it('chỉ có cc và số tiền → thiếu mô tả', () =>
-    expect(err('/food cc 40k')).toMatch(/mô tả/i));
+  it('chỉ có hsbc và số tiền → thiếu mô tả', () =>
+    expect(err('/food hsbc 40k')).toMatch(/mô tả/i));
 });
 
 describe('đánh dấu spl và zlp', () => {
@@ -173,8 +213,8 @@ describe('hai token nguồn khác nhau trong một tin → báo lỗi', () => {
     return r.error;
   };
 
-  it('cc và spl cùng lúc → lỗi, không lấy token cuối', () =>
-    expect(err('/food ăn trưa 40k cc spl')).toMatch(/nguồn trả sau/i));
+  it('hsbc và spl cùng lúc → lỗi, không lấy token cuối', () =>
+    expect(err('/food ăn trưa 40k hsbc spl')).toMatch(/nguồn trả sau/i));
 
   it('spl và zlp cùng lúc → lỗi', () =>
     expect(err('/food ăn trưa 40k spl zlp')).toMatch(/nguồn trả sau/i));

@@ -57,24 +57,24 @@ describe('confirmation với khoản thẻ', () => {
 
   it('thẻ không nhảy tháng', () => {
     const s = confirmation(
-      { ...card, date: { y: 2026, m: 8, d: 3 }, source: 'cc', targetMonth: 8 },
+      { ...card, date: { y: 2026, m: 8, d: 3 }, source: 'hsbc', targetMonth: 8 },
       CARD_TOTALS, false);
     expect(s).toContain('💳 trả tháng 8');
   });
 
   it('thẻ nhảy tháng nói rõ cả ngày tiêu lẫn tháng trả', () => {
-    const s = confirmation({ ...card, source: 'cc', targetMonth: 9 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: 'hsbc', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('💳 tiêu 10/08 → trả tháng 9');
   });
 
   it('nhãn nhóm mang THÁNG ĐÍCH, không mang tháng phát sinh', () => {
-    const s = confirmation({ ...card, source: 'cc', targetMonth: 9 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: 'hsbc', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('Ăn uống sinh hoạt (T9)');
     expect(s).not.toContain('Ăn uống sinh hoạt (T8)');
   });
 
   it('nhãn tổng chi cũng mang THÁNG ĐÍCH', () => {
-    const s = confirmation({ ...card, source: 'cc', targetMonth: 9 }, CARD_TOTALS, false);
+    const s = confirmation({ ...card, source: 'hsbc', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('Tổng chi T9');
     expect(s).not.toContain('Tổng chi T8');
   });
@@ -107,6 +107,14 @@ describe('confirmation với spl và zlp', () => {
     expect(s).not.toContain('💳');
   });
 
+  it('vpb hiện đúng emoji 🟢, không lẫn với 💳 của hsbc', () => {
+    const s = confirmation(
+      { ...card, date: { y: 2026, m: 8, d: 3 }, source: 'vpb', targetMonth: 8 },
+      CARD_TOTALS, false);
+    expect(s).toContain('🟢 trả tháng 8');
+    expect(s).not.toContain('💳');
+  });
+
   it('spl nhảy tháng nói rõ cả ngày tiêu lẫn tháng trả', () => {
     const s = confirmation({ ...card, source: 'spl', targetMonth: 9 }, CARD_TOTALS, false);
     expect(s).toContain('🛍️ tiêu 10/08 → trả tháng 9');
@@ -120,11 +128,12 @@ describe('confirmation với spl và zlp', () => {
 });
 
 describe('helpText — mục Nguồn trả sau', () => {
-  const note = { shortcodes: {}, cutoffDays: { cc: 7, spl: 24, zlp: 28 } };
+  const note = { shortcodes: {}, cutoffDays: { hsbc: 7, vpb: 26, spl: 24, zlp: 28 } };
   const html = helpText(note);
 
-  it('liệt kê cả ba token', () => {
-    expect(html).toContain('cc');
+  it('liệt kê đủ mọi token', () => {
+    expect(html).toContain('hsbc');
+    expect(html).toContain('vpb');
     expect(html).toContain('spl');
     expect(html).toContain('zlp');
   });
@@ -141,7 +150,7 @@ describe('helpText — mục Nguồn trả sau', () => {
   it('mục có tiêu đề "Nguồn trả sau"', () => expect(html).toContain('Nguồn trả sau'));
 
   it('mốc chốt lấy từ note.cutoffDays, không phải mặc định trong code', () => {
-    const overridden = helpText({ shortcodes: {}, cutoffDays: { cc: 20, spl: 24, zlp: 28 } });
+    const overridden = helpText({ shortcodes: {}, cutoffDays: { hsbc: 20, vpb: 26, spl: 24, zlp: 28 } });
     expect(overridden).toContain('chốt ngày 20');
     expect(overridden).not.toContain('chốt ngày 7');
   });
@@ -150,7 +159,7 @@ describe('helpText — mục Nguồn trả sau', () => {
 describe('carryOverRefusal', () => {
   const e = {
     description: 'cơm trưa', date: { y: 2026, m: 12, d: 10 },
-    label: 'Ăn uống sinh hoạt', source: null as null | 'cc' | 'spl' | 'zlp',
+    label: 'Ăn uống sinh hoạt', source: null as null | 'hsbc' | 'vpb' | 'spl' | 'zlp',
   };
   const err = 'Khoản này rơi vào kỳ trả tháng 1/2027 — file 2026 chưa có chỗ.';
 
@@ -172,10 +181,10 @@ describe('carryOverRefusal', () => {
 
   it('không có nguồn → không có emoji nguồn nào', () => {
     const s = carryOverRefusal({ ...e, amount: { kind: 'exact', amount: 40_000 } }, err);
-    expect(s).not.toMatch(/💳|🛍️|🔵/);
+    expect(s).not.toMatch(/💳|🟢|🛍️|🔵/);
   });
 
-  it.each([['cc', '💳'], ['spl', '🛍️'], ['zlp', '🔵']] as const)(
+  it.each([['hsbc', '💳'], ['vpb', '🟢'], ['spl', '🛍️'], ['zlp', '🔵']] as const)(
     'nguồn %s → in kèm emoji %s để biết viết tiền tố nào khi chép tay', (source, emoji) => {
       const s = carryOverRefusal(
         { ...e, source, amount: { kind: 'exact', amount: 40_000 } }, err);

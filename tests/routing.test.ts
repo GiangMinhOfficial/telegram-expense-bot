@@ -43,28 +43,28 @@ describe('từ tin nhắn tới bảng đích', () => {
   it('tiền mặt ngày 10/8 → bảng tháng 8', () =>
     expect(destination('/food ăn trưa 40k')).toEqual({ table: 'food_8', description: 'ăn trưa' }));
 
-  it('quẹt thẻ ngày 10/8 → bảng tháng 9, mô tả mang tiền tố [cc]', () =>
-    expect(destination('/food ăn trưa 40k cc')).toEqual({ table: 'food_9', description: '[cc] ăn trưa' }));
+  it('quẹt thẻ ngày 10/8 → bảng tháng 9, mô tả mang tiền tố [hsbc]', () =>
+    expect(destination('/food ăn trưa 40k hsbc')).toEqual({ table: 'food_9', description: '[hsbc] ăn trưa' }));
 
   it('quẹt thẻ ngày 3/8 chưa qua mốc → vẫn bảng tháng 8', () =>
-    expect(destination('/food ăn trưa 40k 3/8 cc')).toEqual({ table: 'food_8', description: '[cc] ăn trưa' }));
+    expect(destination('/food ăn trưa 40k 3/8 hsbc')).toEqual({ table: 'food_8', description: '[hsbc] ăn trưa' }));
 
   it('quẹt thẻ đúng ngày mốc 7/8 → vẫn bảng tháng 8', () =>
-    expect(destination('/food ăn trưa 40k 7/8 cc')).toEqual({ table: 'food_8', description: '[cc] ăn trưa' }));
+    expect(destination('/food ăn trưa 40k 7/8 hsbc')).toEqual({ table: 'food_8', description: '[hsbc] ăn trưa' }));
 
   it('ghi lùi sang tháng trước: quẹt thẻ 10/7 → bảng tháng 8', () =>
     // Ngày 10/7 đã qua mốc của kỳ sao kê 7/7, nên rơi vào kỳ 7/8 và trả trong
     // tháng 8. Ghi lùi ngày và quy tắc thẻ tự khớp, không cần luật riêng.
-    expect(destination('/food ăn trưa 40k 10/7 cc')).toEqual({ table: 'food_8', description: '[cc] ăn trưa' }));
+    expect(destination('/food ăn trưa 40k 10/7 hsbc')).toEqual({ table: 'food_8', description: '[hsbc] ăn trưa' }));
 
   it('mốc chốt 4 đẩy ngày 5/8 sang bảng tháng 9', () =>
-    expect(destination('/food ăn trưa 40k 5/8 cc', 4)).toEqual({ table: 'food_9', description: '[cc] ăn trưa' }));
+    expect(destination('/food ăn trưa 40k 5/8 hsbc', 4)).toEqual({ table: 'food_9', description: '[hsbc] ăn trưa' }));
 
   it('cùng ngày 5/8 với mốc 7 thì ở lại bảng tháng 8', () =>
-    expect(destination('/food ăn trưa 40k 5/8 cc', 7)).toEqual({ table: 'food_8', description: '[cc] ăn trưa' }));
+    expect(destination('/food ăn trưa 40k 5/8 hsbc', 7)).toEqual({ table: 'food_8', description: '[hsbc] ăn trưa' }));
 
   it('nhóm khác cũng đi theo cùng quy tắc', () =>
-    expect(destination('/transport grab 55k cc')).toEqual({ table: 'transport_9', description: '[cc] grab' }));
+    expect(destination('/transport grab 55k hsbc')).toEqual({ table: 'transport_9', description: '[hsbc] grab' }));
 
   it('tiền mặt không bao giờ nhảy tháng, kể cả cuối tháng', () =>
     expect(destination('/other lặt vặt 30k 28/8')).toEqual({ table: 'other_8', description: 'lặt vặt' }));
@@ -73,12 +73,12 @@ describe('từ tin nhắn tới bảng đích', () => {
     expect(destination('/food ăn trưa 40k').description).toBe('ăn trưa'));
 
   it('token nguồn đứng ở vị trí nào trong câu cũng cho cùng kết quả', () => {
-    expect(destination('/food cc ăn trưa 40k')).toEqual({ table: 'food_9', description: '[cc] ăn trưa' });
-    expect(destination('/food ăn cc trưa 40k')).toEqual({ table: 'food_9', description: '[cc] ăn trưa' });
+    expect(destination('/food hsbc ăn trưa 40k')).toEqual({ table: 'food_9', description: '[hsbc] ăn trưa' });
+    expect(destination('/food ăn hsbc trưa 40k')).toEqual({ table: 'food_9', description: '[hsbc] ăn trưa' });
   });
 });
 
-describe('spl và zlp chạy đúng như cc, chỉ khác mốc chốt và tiền tố', () => {
+describe('spl và zlp chạy đúng như hsbc, chỉ khác mốc chốt và tiền tố', () => {
   it('spl (mốc 24): ngày 20/8 chưa qua mốc → bảng tháng 8, tiền tố [spl]', () =>
     expect(destination('/food mua áo 250k 20/8 spl'))
       .toEqual({ table: 'food_8', description: '[spl] mua áo' }));
@@ -95,6 +95,25 @@ describe('spl và zlp chạy đúng như cc, chỉ khác mốc chốt và tiền
     expect(destination('/food mua áo 250k 25/7 spl'))
       .toEqual({ table: 'food_8', description: '[spl] mua áo' }));
 
+  it('vpb (mốc 26): ngày 25/8 chưa qua mốc → bảng tháng 8, tiền tố [vpb]', () =>
+    expect(destination('/food mua sách 120k 25/8 vpb'))
+      .toEqual({ table: 'food_8', description: '[vpb] mua sách' }));
+
+  it('vpb: đúng ngày mốc 26/8 vẫn ở bảng tháng 8', () =>
+    expect(destination('/food mua sách 120k 26/8 vpb'))
+      .toEqual({ table: 'food_8', description: '[vpb] mua sách' }));
+
+  it('vpb: ngày 27/8 qua mốc 26 → bảng tháng 9', () =>
+    expect(destination('/food mua sách 120k 27/8 vpb'))
+      .toEqual({ table: 'food_9', description: '[vpb] mua sách' }));
+
+  it('vpb 27/12 (qua mốc 26) → từ chối', () =>
+    expect(() => destination('/food mua sách 120k 27/12 vpb')).toThrow(/1\/2027/));
+
+  it('cc cũ giờ là chữ thường: ngày 10/8 ở lại bảng tháng 8, không tiền tố', () =>
+    expect(destination('/food ăn trưa 40k cc'))
+      .toEqual({ table: 'food_8', description: 'ăn trưa cc' }));
+
   it('zlp (mốc 28): ngày 20/8 chưa qua mốc → bảng tháng 8, tiền tố [zlp]', () =>
     expect(destination('/food trả góp 300k 20/8 zlp'))
       .toEqual({ table: 'food_8', description: '[zlp] trả góp' }));
@@ -107,16 +126,16 @@ describe('spl và zlp chạy đúng như cc, chỉ khác mốc chốt và tiền
     expect(destination('/food trả góp 300k 28/8 zlp'))
       .toEqual({ table: 'food_8', description: '[zlp] trả góp' }));
 
-  it('cùng ngày 5/8 (trước cả ba mốc): cc, spl, zlp đều ở lại bảng tháng 8', () => {
-    expect(destination('/food test 40k 5/8 cc').table).toBe('food_8');
+  it('cùng ngày 5/8 (trước mọi mốc): hsbc, spl, zlp đều ở lại bảng tháng 8', () => {
+    expect(destination('/food test 40k 5/8 hsbc').table).toBe('food_8');
     expect(destination('/food test 40k 5/8 spl').table).toBe('food_8');
     expect(destination('/food test 40k 5/8 zlp').table).toBe('food_8');
   });
 });
 
-describe('khoản trả sau vắt sang năm sau bị chặn ngay ở chuỗi này, cho cả ba nguồn', () => {
+describe('khoản trả sau vắt sang năm sau bị chặn ngay ở chuỗi này, cho mọi nguồn', () => {
   it('quẹt thẻ 10/12 → từ chối, không có bảng nào nhận', () =>
-    expect(() => destination('/food ăn trưa 40k 10/12 cc')).toThrow(/1\/2027/));
+    expect(() => destination('/food ăn trưa 40k 10/12 hsbc')).toThrow(/1\/2027/));
 
   it('spl 25/12 (qua mốc 24) → từ chối', () =>
     expect(() => destination('/food mua áo 250k 25/12 spl')).toThrow(/1\/2027/));
@@ -130,8 +149,8 @@ describe('khoản trả sau vắt sang năm sau bị chặn ngay ở chuỗi nà
 
 describe('cutoffDayFor: đúng lời gọi router.ts thật dùng để đưa mốc từ Note vào', () => {
   it('mốc từ note.cutoffDays đè mốc mặc định trong code', () =>
-    expect(cutoffDayFor('cc', { cc: 20, spl: 24, zlp: 28 })).toBe(20));
+    expect(cutoffDayFor('hsbc', { hsbc: 20, vpb: 26, spl: 24, zlp: 28 })).toBe(20));
 
   it('không có nguồn → 0, bất kể cutoffDays truyền vào là gì', () =>
-    expect(cutoffDayFor(null, { cc: 20, spl: 24, zlp: 28 })).toBe(0));
+    expect(cutoffDayFor(null, { hsbc: 20, vpb: 26, spl: 24, zlp: 28 })).toBe(0));
 });

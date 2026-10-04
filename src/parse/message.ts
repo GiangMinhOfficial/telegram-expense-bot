@@ -1,5 +1,6 @@
 import {
-  type CategoryKey, type DeferredSource, WORKBOOK_YEAR, isCategory, isDeferredSource,
+  type CategoryKey, type DeferredSource, LEGACY_HSBC_TOKEN, WORKBOOK_YEAR, isCategory,
+  isDeferredSource,
 } from '../config';
 import { type Amount, parseAmount } from './amount';
 import { type VNDate, parseDateToken, vnToday } from './date';
@@ -13,13 +14,15 @@ export interface ParsedEntry {
 }
 
 /**
- * Đọc `source` từ một bản ghi JSON có thể thuộc kiểu cũ — trước ticket 01
- * (prefactor) mang `isCard: boolean` thay vì `source`. Dùng ở hàng đợi ghi lại
- * và khoản mơ hồ đang chờ. Xoá được sau khi deploy xong và hàng đợi ghi lại đã rỗng.
+ * Đọc `source` từ một bản ghi JSON có thể thuộc kiểu cũ: mang `isCard: boolean`
+ * thay vì `source`, hoặc mang `source: 'cc'` từ trước khi thẻ HSBC đổi token.
+ * Cả hai đều là thẻ HSBC. Dùng ở hàng đợi ghi lại và khoản mơ hồ đang chờ. Xoá
+ * được sau khi deploy xong và hàng đợi ghi lại đã rỗng.
  */
-export function legacySource(p: { source?: DeferredSource | null; isCard?: boolean }):
+export function legacySource(p: { source?: string | null; isCard?: boolean }):
 DeferredSource | null {
-  return p.source ?? (p.isCard ? 'cc' : null);
+  if (p.source === LEGACY_HSBC_TOKEN || (p.source == null && p.isCard)) return 'hsbc';
+  return p.source != null && isDeferredSource(p.source) ? p.source : null;
 }
 export type ParseOutcome =
   | { ok: true; entry: ParsedEntry }
@@ -58,8 +61,9 @@ export function parseMessage(
 
   const raws = parts.slice(1).filter(Boolean);
 
-  // Bóc token nguồn (đúng cc/spl/zlp) ra trước khi quét số tiền, ngày, mô tả.
+  // Bóc token nguồn (đúng hsbc/vpb/spl/zlp) ra trước khi quét số tiền, ngày, mô tả.
   // KHÔNG nhận thẻ/the/td/ví: "/other nạp thẻ 100k" phải là câu bình thường.
+  // `cc` cũng KHÔNG còn là token: nó ở lại trong mô tả như một chữ thường.
   const tokens: string[] = [];
   const sources = new Set<DeferredSource>();
   for (const t of raws) {
@@ -68,7 +72,7 @@ export function parseMessage(
     tokens.push(t);
   }
 
-  // Hai token KHÁC NHAU (vd. "cc spl") là mơ hồ — không đoán, gõ lại lần nữa
+  // Hai token KHÁC NHAU (vd. "hsbc vpb") là mơ hồ — không đoán, gõ lại lần nữa
   // vẫn tính là một nguồn duy nhất.
   if (sources.size > 1) {
     return {

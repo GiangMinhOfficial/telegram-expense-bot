@@ -70,32 +70,43 @@ gõ thêm một dòng trong Excel — **không cần sửa code, không cần de
 Thêm một token vào tin nhắn, ở bất kỳ vị trí nào:
 
 ```
-/food ăn trưa 40k cc
+/food ăn trưa 40k vpb
 ```
 
-| Token | Nguồn | Mốc chốt mặc định |
-|---|---|---|
-| `cc` | Thẻ tín dụng | 7 |
-| `spl` | SPayLater | 24 |
-| `zlp` | Ví trả sau ZaloPay | 28 |
+| Token | Nguồn | Mốc chốt mặc định | Emoji |
+|---|---|---|---|
+| `hsbc` | Thẻ HSBC | 7 | 💳 |
+| `vpb` | Thẻ VPBank | 26 | 🟢 |
+| `spl` | SPayLater | 24 | 🛍️ |
+| `zlp` | Ví trả sau ZaloPay | 28 | 🔵 |
 
-Khoản trả bằng một trong ba nguồn này được ghi vào tháng **tiền rời tài khoản**, không
+Khoản trả bằng một trong các nguồn này được ghi vào tháng **tiền rời tài khoản**, không
 phải tháng tiêu. Kỳ sao kê của mỗi nguồn đóng vào hết ngày chốt riêng của nó, nên khoản
 tiêu sau ngày đó rơi sang tháng sau. Trước và đúng ngày chốt thì thẻ hay tiền mặt đều
 cùng một tháng, không cần nghĩ.
 
 Cột `Ngày` vẫn giữ ngày tiêu thật. Thấy một ngày của tháng trước nằm trong sheet tháng
-sau nghĩa là khoản đó trả sau — nhưng với ba nguồn cùng lúc, không phải khoản nào cũng
-là thẻ tín dụng; xem ô mô tả để biết đúng nguồn (`[cc]` / `[spl]` / `[zlp]`).
+sau nghĩa là khoản đó trả sau — xem ô mô tả để biết đúng nguồn (`[hsbc]` / `[vpb]` /
+`[spl]` / `[zlp]`).
+
+Thẻ HSBC trước đây dùng token `cc`. Các dòng `[cc]` đã ghi từ thời đó **giữ nguyên**
+trong file và vẫn là khoản thẻ HSBC. `cc` giờ không còn là token: gõ
+`/food ăn trưa 40k cc` thì bot ghi mô tả "ăn trưa cc" như một khoản tiền mặt, vào
+tháng phát sinh, không cảnh báo.
 
 Đổi mốc chốt của bất kỳ nguồn nào: sửa cột `I` ở khối `H`–`I` của sheet `Note` (cột `H`
 là token, cột `I` là ngày chốt), không cần deploy lại. Chỉ nhận số nguyên 1–28; ngoài
 khoảng đó hoặc nguồn thiếu khỏi khối thì bot quay về mốc mặc định của đúng nguồn đó.
 
-Ba token chỉ dùng cho 6 nhóm chi tiêu. Với `/income`, `/invest`, `/saving` thì bot từ chối.
+Các token chỉ dùng cho 6 nhóm chi tiêu. Với `/income`, `/invest`, `/saving` thì bot từ chối.
 
-Chỉ nhận đúng ba chữ `cc` / `spl` / `zlp`, **không nhận `thẻ`, `ví`, `td`** — vì
+Chỉ nhận đúng bốn chữ `hsbc` / `vpb` / `spl` / `zlp`, **không nhận `thẻ`, `ví`, `td`** — vì
 `/other nạp thẻ 100k` là câu hoàn toàn bình thường để ghi nạp thẻ điện thoại.
+
+Ngược lại, bốn chữ đó **luôn** bị bóc khỏi mô tả và hiểu là nguồn: `/force trả nợ hsbc 5tr`
+sẽ ghi thành `[hsbc] trả nợ` như một khoản quẹt thẻ. Muốn nhắc tên ngân hàng trong mô tả
+thì gõ đầy đủ (`VPBank`) hoặc viết khác đi. Mã viết tắt tên `HSBC` hay `VPB` trong sheet
+`Note` cũng sẽ không bao giờ được bung.
 
 Khoản trả sau tiêu sau mốc chốt trong tháng 12 sẽ trả vào tháng 1 năm sau, mà file này
 chỉ có 12 tháng. Bot từ chối và in lại khoản đó để bạn chép tay sang file năm mới.

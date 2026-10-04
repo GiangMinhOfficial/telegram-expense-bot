@@ -38,7 +38,7 @@ describe('findRowIndex', () => {
   it('bảng rỗng → null', () => expect(findRowIndex([], saved)).toBeNull());
 
   it('khớp dòng có tiền tố nguồn', () => {
-    for (const prefix of ['[cc] ', '[spl] ', '[zlp] ']) {
+    for (const prefix of ['[hsbc] ', '[vpb] ', '[spl] ', '[zlp] ']) {
       const withPrefix: RowValues = [`${prefix}cơm trưa`, NGAY_8_8, 40_000];
       const rows = [
         ['cơm trưa', NGAY_8_8, 40_000],
@@ -49,7 +49,7 @@ describe('findRowIndex', () => {
   });
 
   it('dòng không có tiền tố không khớp khoản đã lưu có tiền tố', () => {
-    const withPrefix: RowValues = ['[cc] cơm trưa', NGAY_8_8, 40_000];
+    const withPrefix: RowValues = ['[hsbc] cơm trưa', NGAY_8_8, 40_000];
     expect(findRowIndex([['cơm trưa', NGAY_8_8, 40_000]], withPrefix)).toBeNull();
   });
 

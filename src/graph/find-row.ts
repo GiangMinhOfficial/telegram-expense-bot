@@ -6,7 +6,7 @@ import type { RowValues } from './sheet';
  * Hai ô số (serial ngày, số tiền) so chặt theo kiểu, không ép kiểu: Graph trả ô
  * rỗng là `''`, mà `Number('') === 0` sẽ khiến dòng rỗng khớp nhầm khoản 0 đồng.
  * Ô mô tả thì đổi sang chuỗi trước khi so: mô tả toàn chữ số ("100") được Excel
- * lưu thành số và đọc về là số. Mô tả đã gồm tiền tố nguồn (`[cc] `...).
+ * lưu thành số và đọc về là số. Mô tả đã gồm tiền tố nguồn (`[hsbc] `...).
  *
  * Nhiều dòng giống hệt nhau thì lấy dòng dưới cùng — xoá dòng nào cũng cho cùng
  * kết quả, còn dòng dưới cùng là dòng bot vừa nối vào.

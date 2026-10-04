@@ -19,7 +19,7 @@ export type ExactEntry = Omit<ParsedEntry, 'amount'> & {
 /**
  * Ba ô sẽ ghi vào Excel. Hàm thuần — không cần Env hay Graph để gọi.
  *
- * CHỖ DUY NHẤT ghép tiền tố nguồn (`[cc] `, `[spl] `, `[zlp] `) vào mô tả —
+ * CHỖ DUY NHẤT ghép tiền tố nguồn (`[hsbc] `, `[vpb] `, `[spl] `, `[zlp] `) vào mô tả —
  * xem docs/adr/0001-tien-to-nguon-trong-cot-mo-ta.md.
  */
 export function buildRow(e: ExactEntry): RowValues {
